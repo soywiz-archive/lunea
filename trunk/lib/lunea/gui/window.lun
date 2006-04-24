@@ -1,0 +1,322 @@
+process Window {
+	private real __width, __height;
+	char[] title;
+	bit dragging = false;
+	bit resizing = false;
+	int resizingp = 0;
+	real dpx, dpy;
+	real drx, dry;
+	real dmx, dmy;
+	real stickydist = 8;
+	bit hasfocus = false;
+	real minw = 100, minh = 100;
+
+	alias width  w;
+	alias height h;
+
+	this() {
+		this.group.z = gui;
+		this.group.priority = gui;
+		this.__width = 100;
+		this.__height = 100;
+		title = "Untitled";
+		center();
+		gui.attach(this);
+		relativex = 2;
+		relativey = 20;
+	}
+
+	public void width(real v) {
+		__width = max(minw, v);
+	}
+
+	public void height(real v) {
+		__height = max(minh, v);
+	}
+
+	public real width() {
+		return __width;
+	}
+
+	public real height() {
+		return __height;
+	}
+
+	static private bit near(real from, real to, real dist = 5) {
+		dist = abs(dist);
+		return (from >= to - dist && from <= to + dist);
+	}
+
+	private static void nearset(inout real from, real to, real dist = 5, real addv = 0) {
+		if (near(from + addv, to, dist)) from = to - addv;
+	}
+
+	private static bit rintersect(real a1, real a2, real b1, real b2) {
+		real temp;
+		if (a1 > a2) { real temp = a2; a2 = a1; a1 = temp; }
+		if (b1 > b2) { real temp = b2; b2 = b1; b1 = temp; }
+
+		return (min(a2, b2) + 1) >= (max(a1, b1) - 1);
+	}
+
+	static private void nearboxset(inout real x1, inout real y1, real w1, real h1, real x2, real y2, real w2, real h2, real dist = 5) {
+		bit setx = false, sety = false;
+
+		// Horizontal
+		if (near(x1 + w1, x2     , dist) && rintersect(y1, y1 + h1, y2, y2 + h2)) { setx = true; x1 = x2 - w1 - 1; }
+		if (near(x1     , x2 + w2, dist) && rintersect(y1, y1 + h1, y2, y2 + h2)) { setx = true; x1 = x2 + w2 + 1; }
+
+		// Vertical
+		if (near(y1 + h1, y2     , dist) && rintersect(x1, x1 + w1, x2, x2 + w2)) { sety = true; y1 = y2 - h1 - 1; }
+		if (near(y1     , y2 + h2, dist) && rintersect(x1, x1 + w1, x2, x2 + w2)) { sety = true; y1 = y2 + h2 + 1; }
+
+		if (setx) {
+			nearset(y1, y2, dist, h1 + 1);
+			nearset(y1, y2 + h2, dist, h1);
+		}
+
+		if (sety) {
+			nearset(x1, x2, dist, w1 + 1);
+			nearset(x1, x2 + w2, dist, w1);
+		}
+
+		if (setx) {
+			nearset(y1, y2, dist);
+			nearset(y1, y2 + h2 + 1, dist);
+		}
+
+		if (sety) {
+			nearset(x1, x2, dist);
+			nearset(x1, x2 + w2 + 1, dist);
+		}
+	}
+
+	static private void nearboxsetr(real x1, real y1, inout real w1, inout real h1, real x2, real y2, real w2, real h2, real dist = 5) {
+		if (near(x1 + w1, x2, dist) && rintersect(y1, y1 + h1, y2, y2 + h2)) {
+			w1 = x2 - x1 - 1;
+		}
+
+		if (near(x1 + w1, x2 + w2, dist) && rintersect(y1, y1 + h1, y2, y2 + h2)) {
+			w1 = x2 + w2 - x1;
+		}
+
+		if (near(y1 + h1, y2, dist) && rintersect(x1, x1 + w1, x2, x2 + w2)) {
+			h1 = y2 - y1 - 1;
+		}
+
+		if (near(y1 + h1, y2 + h2, dist) && rintersect(x1, x1 + w1, x2, x2 + w2)) {
+			h1 = y2 + h2 - y1;
+		}
+
+		if (near(x1 + w1, Screen.width,  dist)) w1 = Screen.width - x1 - 1;
+		if (near(y1 + h1, Screen.height, dist)) h1 = Screen.height - y1;
+
+		w1 = max(100, w1); h1 = max(100, h1);
+	}
+
+	private void updatenear_position() {
+		if (!this.group || !this.group.z) return;
+
+		foreach (Process p; group.z.zList) {
+			if (p is this) continue;
+			if (this.classinfo !is p.classinfo) continue;
+			Window wnd = cast(Window)p;
+			nearboxset(x, y, width, height, wnd.x, wnd.y, wnd.width, wnd.height, stickydist);
+		}
+	}
+
+	private void updatenear_resize() {
+		if (!this.group || !this.group.z) return;
+
+		foreach (Process p; group.z.zList) {
+			if (p is this) continue;
+			if (this.classinfo !is p.classinfo) continue;
+			Window wnd = cast(Window)p;
+			nearboxsetr(x, y, __width, __height, wnd.x, wnd.y, wnd.width, wnd.height, stickydist);
+		}
+	}
+
+	public void pxy(real x, real y) {
+		px(x); py(y);
+		updatenear_position();
+	}
+
+	public void px(real x) {
+		nearset(x, 0, stickydist, 0);
+		nearset(x, Screen.width, stickydist, width + 1);
+		this.x = max(-width + 20, x);
+	}
+
+	public void py(real y) {
+		nearset(y, 0, stickydist, 0);
+		nearset(y, Screen.height, stickydist, height + 1);
+		this.y = max(-5, y);
+	}
+
+	public real px() {
+		return y;
+	}
+
+	public real py() {
+		return y;
+	}
+
+	public void center() {
+		x = Screen.width  / 2 - (__width  / 2);
+		y = Screen.height / 2 - (__height / 2);
+	}
+
+	action main {
+		while (true) {
+			int px1 = cast(int)__x, py1 = cast(int)__y;
+			int px2 = px1 + cast(int)__width;
+			int py2 = py1 + cast(int)__height;
+
+			if (Mouse.x >= px1 && Mouse.x <= px2) {
+				if (Mouse.y >= py1 && Mouse.y <= py2) {
+					guiover = this;
+					if (Mouse.y >= py1 && Mouse.y <= py1 + 18) {
+						if (Mouse.pressed[0] && !guifocusedc) {
+							// Start drag
+							if (guifocused !is this) {
+								//writefln("Focus: " ~ this.toString);
+							}
+							//writefln("Drag start");
+							dragging = true;
+							dpx = x; dpy = y;
+							dmx = Mouse.x; dmy = Mouse.y;
+							gui.bringFront(this);
+							guifocusedc = this;
+						}
+					} else if (Mouse.pressed[0]) {
+						if (!guifocusedc) {
+							if (guifocused !is this) {
+								//writefln("Focus: " ~ this.toString);
+							}
+							gui.bringFront(this);
+							guifocusedc = this;
+						}
+					}
+
+					if (Mouse.pressed[0] && !guifocusedc || guifocusedc is this) {
+						resizingp = 0;
+
+						if (Mouse.x >= px2 - 3 && Mouse.x <= px2 && Mouse.y >= py1 + 18) {
+							resizing   = true;
+							resizingp |= 1 << 0;
+						}
+
+						if (Mouse.y >= py2 - 3 && Mouse.y <= py2) {
+							resizing   = true;
+							resizingp |= 1 << 1;
+						}
+
+						if ((Mouse.x >= px2 - 8 && Mouse.x <= px2) && (Mouse.y >= py2 - 8 && Mouse.y <= py2)) {
+							resizing   = true;
+							resizingp |= (1 << 0) | (1 << 1);
+						}
+
+						/*if (Mouse.x >= px1 && Mouse.x <= px1 + 3) {
+							resizing   = true;
+							resizingp |= 1 << 2;
+						}
+
+						if (Mouse.y >= py1 && Mouse.y <= py1 + 3) {
+							resizing   = true;
+							resizingp |= 1 << 3;
+							dragging = false;
+						}*/
+
+						if (resizing) {
+							//writefln("Resize start");
+							drx = width;
+							dry = height;
+							dpx = x;
+							dpy = y;
+							dmx = Mouse.x; dmy = Mouse.y;
+						}
+					}
+
+					if (Mouse.pressed[0]) {
+						hasfocus = true;
+					}
+				}
+			}
+
+			if (resizing) {
+				if (Mouse.x - dmx != 0 || Mouse.y - dmy != 0) {
+					if (resizingp & (1 << 0)) width  = drx + Mouse.x - dmx;
+					if (resizingp & (1 << 1)) height = dry + Mouse.y - dmy;
+					/*if (resizingp & (1 << 2)) {
+						px(dpx + Mouse.x - dmx);
+						updatenear_position();
+						width = drx - (x - dpx);
+						if (width <= drx) px(dpx);
+					}
+					if (resizingp & (1 << 3)) {
+						py(dpy + Mouse.y - dmy);
+						updatenear_position();
+						height = dry - (y - dpy);
+						if (height <= dry) py(dpy);
+					}*/
+
+					updatenear_resize();
+				}
+
+				if (Mouse.released[0]) {
+					//writefln("Resize end");
+					resizing = false;
+				}
+
+				guifocusedc = this;
+			}
+
+			if (dragging) {
+				pxy(dpx + Mouse.x - dmx, dpy + Mouse.y - dmy);
+
+				if (Mouse.released[0]) {
+					//writefln("Drag end");
+					dragging = false;
+				}
+
+				guifocusedc = this;
+			}
+
+			if (Mouse.released[0]) {
+				hasfocus = false;
+			}
+
+			if (hasfocus) {
+				guifocusedc = this;
+			}
+
+			clip = Rect.fromCoords(__x + 2, __y + 20, __x + width - 2, __y + height - 2);
+			frame();
+		}
+	}
+
+	action draw {
+		int px1 = cast(int)__x, py1 = cast(int)__y;
+		int px2 = px1 + cast(int)__width;
+		int py2 = py1 + cast(int)__height;
+		Screen.drawFillBox(px1, py1, px2, py2, gui.bgColor);
+		Screen.drawBox(px1, py1, px2, py2, gui.fgColor);
+		if (guifocused is this) {
+			Screen.drawFillBox(px1 + 2, py1 + 2, px2 - 2, py1 + 18, gui.tbaColor);
+			guifont.draw(title, px1 + 6, py1 + 5, Color.black);
+		} else {
+			Screen.drawFillBox(px1 + 2, py1 + 2, px2 - 2, py1 + 18, gui.tbbColor);
+		}
+		guifont.draw(title, px1 + 5, py1 + 4, Color.white);
+	}
+
+	/*
+	action drawBegin {
+		Screen.pushClip(new Rect(x + 1, y + 20, x + width - 1, y + height - 1), true);
+	}
+
+	action drawEnd {
+		Screen.popClip();
+	}
+	*/
+}

@@ -1,0 +1,65 @@
+process Button {
+	real width = 80, height = 20;
+	char[] label;
+	bit pressing = false;
+	bit over = false;
+	bit toggle = false;
+	bit pressed = false;
+
+	GuiEventHandler onClick;
+
+	this() {
+		onClick = new GuiEventHandler();
+	}
+
+	action main {
+		while (true) {
+			int px1 = cast(int)__x, py1 = cast(int)__y;
+			int px2 = px1 + cast(int)width;
+			int py2 = py1 + cast(int)height;
+
+			over = false;
+			if (Mouse.x >= px1 && Mouse.x <= px2) {
+				if (Mouse.y >= py1 && Mouse.y <= py2) {
+					if (Mouse.pressed[0]) {
+						pressing = true;
+						// Pressed
+					}
+
+					if (Mouse.b[0] && pressing) over = true;
+
+					if (pressing && Mouse.released[0]) {
+						if (toggle) pressed = !pressed;
+						onClick.execute(this);
+					}
+				}
+			}
+
+			if (Mouse.released[0]) {
+				pressing = false;
+				// Released
+			}
+			frame();
+		}
+	}
+
+	action draw {
+		int px1 = cast(int)__x, py1 = cast(int)__y;
+		int px2 = px1 + cast(int)width;
+		int py2 = py1 + cast(int)height;
+
+		if (pressing || pressed) {
+			Screen.drawFillBox(px1, py1, px2, py2, gui.fgColor);
+		} else {
+			Screen.drawFillBox(px1, py1, px2, py2, gui.bgColor);
+		}
+
+		Screen.drawBox(px1, py1, px2, py2, gui.fgColor);
+		guifont.draw(
+			label,
+			px1 + (px2 - px1) / 2 - guifont.width(label) / 2 - 1,
+			py1 + (py2 - py1) / 2 - guifont.height / 2,
+			Color.black
+		);
+	}
+}
