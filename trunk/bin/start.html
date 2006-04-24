@@ -1,0 +1,40 @@
+<html>
+	<head>
+		<title>Lunea Start</title>
+<style>
+h1 {
+	font-family: Arial;
+	font-size: 28px;
+	text-align: center;
+	text-decoration: underline;
+	color: green;
+}
+p, li {
+	font-family: Arial;
+	font-size: 12px;
+}
+a:link, a:visited, a:active {
+	color: blue;
+	text-decoration: none;
+}
+a:hover {
+	color: red;
+	text-decoration: underline;
+}
+</style>
+	</head>
+	<body>
+		<h1>Requisitos</h1>
+		<p style="color: red;">Lunea es un frontend para el compilador de D de digital mars y por lo tanto necesita dicho compilador. El compilador es gratuito <strong>pero hay que descargarlo</strong> porque la licencia de uso es individual y no se permite la redistribución.</p>
+		<p>Para ejecutar Lunea, <strong>necesitas</strong> el compilador de D, de C/C++ de digital mars y las utilidades básicas.</p>
+		<p>Estas utilidades son gratuitas y se pueden descargar desde la página web de digital mars: <a href="http://www.digitalmars.com/" target="_blank">http://www.digitalmars.com/</a></p>
+		<ul>
+			<li><a href="http://www.digitalmars.com/d/dcompiler.html#Win32" target="_blank">Compilador de D y de C/C++</a> - dmd.zip (D compiler) for Win32 | dmc.zip (linker and utilities) for Win32</li>
+			<li><a href="http://www.digitalmars.com/download/dmcpp.html" target="_blank">Utilidades básicas</a> - Basic Utilities  (262,000 bytes)</li>
+		</ul>
+		<p>Los tres ficheros descargados deberían contener los directorios: <strong>dmd/</strong> y <strong>dm/</strong>.</p>
+		<p>Para que lunea lo detecte automáticamente, basta decomprimir estos directorios en el directorio superior de lunea. De forma que en el directorio padre, queden los directorio: <strong>dm/</strong>, <strong>dmd/</strong>, <strong>lunea/</strong></p>
+		<p>Se pueden elegir directorios diferentes para el DM y el DMD siempre y cuando se editen los ficheros <strong>lunea/bin/lunea.ini</strong> y <strong>dmd/bin/sc.ini</strong></p>
+		<p><a href="http://lunea.sourceforge.net/" target="_blank">Página web de Lunea</a></p>
+	</body>
+</html>
