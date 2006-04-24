@@ -1,5 +1,7 @@
 @echo off
 
+echo INSTALADOR DE LUNEA
+
 SET SUCCESS=1
 
 SET RETERR=reterr1
