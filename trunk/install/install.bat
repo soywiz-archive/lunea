@@ -70,7 +70,8 @@ IF NOT EXIST "..\..\..\install\src" GOTO finish_install
 ECHO Copiando cambios del directorio SRC...
 XCOPY /S /Q /Y /I ..\..\..\install\src . > NUL 2> NUL
 ECHO Compilando librería PHOBOS.LIB...
-@CALL makelib.bat > NUL
+REM CALL makelib.bat > NUL
+CALL makelib.bat
 CD ..\..\..\install
 IF NOT %ERRORLEVEL%==0 GOTO insterror
 

@@ -23,14 +23,13 @@ DFLAGS=-O -release
 #DFLAGS=-unittest -g
 #DFLAGS=-unittest -cov -g
 
-CC=dmc
+CC=..\..\..\dm\bin\dmc.exe
 
-DMD=..\..\bin\dmd
+DMD=..\..\..\dmd\bin\dmd.exe
 #DMD=\dmd\bin\dmd
 #DMD=..\dmd
 
-DOC=..\..\doc\phobos
-#DOC=..\..\html\d\phobos
+DOC=..\..\..\dmd\html\d\phobos
 #DOC=..\doc\phobos
 
 .c.obj:
@@ -71,7 +70,7 @@ OBJS= asserterror.obj deh.obj switch.obj complex.obj gcstats.obj \
 	stream.obj switcherr.obj com.obj array.obj gc.obj mmfile.obj \
 	qsort.obj math2.obj date.obj dateparse.obj thread.obj obj.obj \
 	iunknown.obj crc32.obj conv.obj arraycast.obj utf.obj uri.obj \
-	Czlib.obj Dzlib.obj zip.obj process.obj registry.obj recls.obj \
+	Czlib.obj Dzlib.obj zip.obj process.obj registry.obj \
 	socket.obj socketstream.obj loader.obj stdarg.obj format.obj stdio.obj \
 	perf.obj openrj.obj uni.obj winsock.obj oldsyserror.obj \
 	errno.obj boxer.obj cstream.obj charset.obj \
@@ -125,7 +124,7 @@ SRC_STD= std\zlib.d std\zip.d std\stdint.d std\conv.d std\utf.d std\uri.d \
 	std\outbuffer.d std\math2.d std\thread.d std\md5.d std\base64.d \
 	std\asserterror.d std\dateparse.d std\outofmemory.d std\mmfile.d \
 	std\intrinsic.d std\array.d std\switcherr.d std\syserror.d \
-	std\regexp.d std\random.d std\stream.d std\process.d std\recls.d \
+	std\regexp.d std\random.d std\stream.d std\process.d \
 	std\socket.d std\socketstream.d std\loader.d std\stdarg.d std\format.d \
 	std\stdio.d std\perf.d std\openrj.d std\uni.d std\boxer.d \
 	std\cstream.d std\demangle.d std\cover.d std\bitarray.d
@@ -162,7 +161,7 @@ SRC_TI=	\
 
 SRC_INT=	\
 	internal\switch.d internal\complex.c internal\critical.c \
-	internal\minit.asm internal\alloca.d internal\llmath.d internal\deh.c \
+	internal\alloca.d internal\llmath.d internal\deh.c \
 	internal\arraycat.d internal\invariant.d internal\monitor.c \
 	internal\memset.d internal\arraycast.d internal\aaA.d internal\adi.d \
 	internal\dmain2.d internal\cast.d internal\qsort.d internal\deh2.d \
@@ -258,37 +257,6 @@ SRC_STLSOFT= \
 	etc\c\stlsoft\stlsoft_cccap_dmc.h \
 	etc\c\stlsoft\winstl_filesystem_traits.h
 
-SRC_RECLS= \
-	etc\c\recls\recls_compiler.h \
-	etc\c\recls\recls_language.h \
-	etc\c\recls\recls_unix.h \
-	etc\c\recls\recls_retcodes.h \
-	etc\c\recls\recls_assert.h \
-	etc\c\recls\recls_platform.h \
-	etc\c\recls\recls_win32.h \
-	etc\c\recls\recls.h \
-	etc\c\recls\recls_util.h \
-	etc\c\recls\recls_compiler_dmc.h \
-	etc\c\recls\recls_compiler_gcc.h \
-	etc\c\recls\recls_platform_types.h \
-	etc\c\recls\recls_internal.h \
-	etc\c\recls\recls_debug.h \
-	etc\c\recls\recls_fileinfo_win32.cpp \
-	etc\c\recls\recls_api_unix.cpp \
-	etc\c\recls\recls_api.cpp \
-	etc\c\recls\recls_util_win32.cpp \
-	etc\c\recls\recls_util_unix.cpp \
-	etc\c\recls\recls_util.cpp \
-	etc\c\recls\recls_internal.cpp \
-	etc\c\recls\recls_fileinfo.cpp \
-	etc\c\recls\recls_defs.h \
-	etc\c\recls\recls_fileinfo_unix.cpp \
-	etc\c\recls\recls_api_win32.cpp \
-	etc\c\recls\win32.mak \
-	etc\c\recls\linux.mak \
-	etc\c\recls\recls.lib
-
-
 SRC_STLSOFT_NEW= \
 	etc\c\stlsoft\winstl_file_path_buffer.h \
 	etc\c\stlsoft\inetstl_connection.h \
@@ -335,57 +303,10 @@ SRC_STLSOFT_NEW= \
 	etc\c\stlsoft\winstl_system_version.h \
 	etc\c\stlsoft\stlsoft_null.h
 
-SRC_RECLS_NEW= \
-	etc\c\recls\recls_compiler_gcc.h \
-	etc\c\recls\recls_retcodes.h \
-	etc\c\recls\EntryFunctions.h \
-	etc\c\recls\recls_platform_types.h \
-	etc\c\recls\recls.h \
-	etc\c\recls\recls_wininet_dl.h \
-	etc\c\recls\ReclsFileSearch.h \
-	etc\c\recls\ReclsFileSearchDirectoryNode_unix.cpp \
-	etc\c\recls\ReclsFileSearchDirectoryNode_unix.h \
-	etc\c\recls\ReclsFileSearchDirectoryNode_win32.cpp \
-	etc\c\recls\ReclsFileSearchDirectoryNode_win32.h \
-	etc\c\recls\recls_wininet_dl.cpp \
-	etc\c\recls\ReclsFileSearch_unix.cpp \
-	etc\c\recls\ReclsFileSearch_win32.cpp \
-	etc\c\recls\recls_win32.h \
-	etc\c\recls\ReclsFtpSearch.h \
-	etc\c\recls\ReclsFtpSearchDirectoryNode_win32.cpp \
-	etc\c\recls\ReclsFtpSearchDirectoryNode_win32.h \
-	etc\c\recls\recls_util_win32.cpp \
-	etc\c\recls\ReclsFtpSearch_win32.cpp \
-	etc\c\recls\recls_util_unix.cpp \
-	etc\c\recls\recls_api.cpp \
-	etc\c\recls\recls_util.h \
-	etc\c\recls\recls_api_unix.cpp \
-	etc\c\recls\recls_api_win32.cpp \
-	etc\c\recls\recls_util.cpp \
-	etc\c\recls\recls_assert.h \
-	etc\c\recls\recls_compiler.h \
-	etc\c\recls\recls_compiler_dmc.h \
-	etc\c\recls\recls_platform.h \
-	etc\c\recls\recls_debug.h \
-	etc\c\recls\recls_defs.h \
-	etc\c\recls\recls_fileinfo.cpp \
-	etc\c\recls\recls_fileinfo_unix.cpp \
-	etc\c\recls\recls_fileinfo_win32.cpp \
-	etc\c\recls\recls_unix.h \
-	etc\c\recls\recls_ftp.h \
-	etc\c\recls\recls_ftp_api_win32.cpp \
-	etc\c\recls\recls_internal.cpp \
-	etc\c\recls\recls_internal.h \
-	etc\c\recls\recls_roots_win32.cpp \
-	etc\c\recls\recls_language.h \
-	etc\c\recls\recls_roots_unix.cpp \
-	etc\c\recls\win32.mak \
-	etc\c\recls\linux.mak
-
 phobos.lib : $(OBJS) minit.obj internal\gc\dmgc.lib etc\c\zlib\zlib.lib \
-	win32.mak etc\c\recls\recls.lib
+	win32.mak
 	lib -c -p32 phobos.lib $(OBJS) minit.obj internal\gc\dmgc.lib \
-		etc\c\recls\recls.lib etc\c\zlib\zlib.lib
+		etc\c\zlib\zlib.lib
 
 html : $(DOCS)
 
@@ -395,11 +316,6 @@ internal\gc\dmgc.lib:
 	cd internal\gc
 	make -f win32.mak dmgc.lib
 	cd ..\..
-
-etc\c\recls\recls.lib:
-	cd etc\c\recls
-	make -f win32.mak recls.lib
-	cd ..\..\..
 
 etc\c\zlib\zlib.lib:
 	cd etc\c\zlib
@@ -448,9 +364,6 @@ invariant.obj : internal\invariant.d
 
 memset.obj : internal\memset.d
 	$(DMD) -c $(DFLAGS) internal\memset.d
-
-minit.obj : internal\minit.asm
-	$(CC) -c internal\minit.asm
 
 monitor.obj : internal\mars.h internal\monitor.c
 	$(CC) -c $(CFLAGS) internal\monitor.c
@@ -558,9 +471,6 @@ process.obj : std\process.d
 
 random.obj : std\random.d
 	$(DMD) -c $(DFLAGS) std\random.d
-
-recls.obj : std\recls.d
-	$(DMD) -c $(DFLAGS) std\recls.d
 
 regexp.obj : std\regexp.d
 	$(DMD) -c $(DFLAGS) std\regexp.d
@@ -912,7 +822,6 @@ zip : win32.mak linux.mak phoboslicense.txt std.ddoc $(SRC) \
 	zip32 -u phobos $(SRC_ETC_C)
 	zip32 -u phobos $(SRC_ZLIB)
 	zip32 -u phobos $(SRC_GC)
-	zip32 -u phobos $(SRC_RECLS)
 	zip32 -u phobos $(SRC_STLSOFT)
 
 clean:
@@ -937,6 +846,5 @@ install:
 	$(CP) $(SRC_ETC_C) \dmd\src\phobos\etc\c
 	$(CP) $(SRC_ZLIB) \dmd\src\phobos\etc\c\zlib
 	$(CP) $(SRC_GC) \dmd\src\phobos\internal\gc
-	$(CP) $(SRC_RECLS) \dmd\src\phobos\etc\c\recls
 	$(CP) $(SRC_STLSOFT) \dmd\src\phobos\etc\c\stlsoft
 

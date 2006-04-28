@@ -34,7 +34,8 @@ int main(char[][] args);
  * function and catch any unhandled exceptions.
  */
 
-extern (C) int main(int argc, char **argv) {
+extern (C) int main(int argc, char **argv)
+{
     char[] *am;
     char[][] args;
     int i;
@@ -42,61 +43,72 @@ extern (C) int main(int argc, char **argv) {
     int myesp;
     int myebx;
 
-	version (linux) {
-		_STI_monitor_staticctor();
-		_STI_critical_init();
-		gc_init();
-		am = cast(char[] *) malloc(argc * (char[]).sizeof);
-		// BUG: alloca() conflicts with try-catch-finally stack unwinding
-		//am = (char[] *) alloca(argc * (char[]).sizeof);
-    } version (Win32) {
-		gc_init();
-		_minit();
-		am = cast(char[] *) malloc(argc * (char[]).sizeof);
-		//am = cast(char[] *) alloca(argc * (char[]).sizeof);
+    version (linux)
+    {
+	_STI_monitor_staticctor();
+	_STI_critical_init();
+	gc_init();
+	am = cast(char[] *) malloc(argc * (char[]).sizeof);
+	// BUG: alloca() conflicts with try-catch-finally stack unwinding
+	//am = (char[] *) alloca(argc * (char[]).sizeof);
+    }
+    version (Win32)
+    {
+	gc_init();
+	_minit();
+	am = cast(char[] *) alloca(argc * (char[]).sizeof);
     }
 
-    if (no_catch_exceptions) {
-		_moduleCtor();
-		_moduleUnitTests();
+    if (no_catch_exceptions)
+    {
+	_moduleCtor();
+	_moduleUnitTests();
 
-		for (i = 0; i < argc; i++) {
-		    int len = strlen(argv[i]);
-		    am[i] = argv[i][0 .. len];
-		}
+	for (i = 0; i < argc; i++)
+	{
+	    int len = strlen(argv[i]);
+	    am[i] = argv[i][0 .. len];
+	}
 
-		args = am[0 .. argc];
+	args = am[0 .. argc];
 
-		result = main(args);
-		_moduleDtor();
-		gc_term();
-    } else {
-		try {
-		    _moduleCtor();
-		    _moduleUnitTests();
+	result = main(args);
+	_moduleDtor();
+	gc_term();
+    }
+    else
+    {
+	try
+	{
+	    _moduleCtor();
+	    _moduleUnitTests();
 
-	    	for (i = 0; i < argc; i++) {
-				int len = strlen(argv[i]);
-				am[i] = argv[i][0 .. len];
-	    	}
+	    for (i = 0; i < argc; i++)
+	    {
+		int len = strlen(argv[i]);
+		am[i] = argv[i][0 .. len];
+	    }
 
-	    	args = am[0 .. argc];
+	    args = am[0 .. argc];
 
-	    	result = main(args);
-	    	_moduleDtor();
-	    	gc_term();
-		} catch (Object o) {
-			printf("Critical Error: ");
-			o.print();
-			exit(EXIT_FAILURE);
-		}
+	    result = main(args);
+	    _moduleDtor();
+	    gc_term();
+	}
+	catch (Object o)
+	{
+	    printf("Error: ");
+	    o.print();
+	    exit(EXIT_FAILURE);
+	}
     }
 
-    version (linux) {
-		free(am);
-		_STD_critical_term();
-		_STD_monitor_staticdtor();
+    version (linux)
+    {
+	free(am);
+	_STD_critical_term();
+	_STD_monitor_staticdtor();
     }
-
     return result;
 }
+
