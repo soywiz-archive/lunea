@@ -123,7 +123,7 @@ int main(string[] args) {
 	if (!compileProgram  (parser,        resources)) return -1;
 
 	writef("\nImports:\n");
-	foreach (char[] key, bit value; parser.imports) {
+	foreach (char[] key, bool value; parser.imports) {
 		echo("\t" ~ key ~ "\n");
 	}
 

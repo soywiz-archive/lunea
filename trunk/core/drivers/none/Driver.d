@@ -26,7 +26,7 @@ module lunea.driver.Driver;
 private import lunea.driver.Main;
 
 public class LuneaDriver {
-	static bit cdebug = false;
+	static bool cdebug = false;
 
 	static void onStart() {
 	}
@@ -60,7 +60,7 @@ public class Rect {
 }
 
 public static class Screen {
-	static void pushClip(Rect rect, bit b) {
+	static void pushClip(Rect rect, bool b) {
 	}
 
 	static void popClip() {

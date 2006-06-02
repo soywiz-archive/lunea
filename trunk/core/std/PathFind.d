@@ -175,7 +175,7 @@ class PathFind {
 	public Point[] find(int _sx, int _sy, int _dx, int _dy, int flags = 0) {
 		Point[] retlist;
 		Node current;
-		bit found = false;
+		bool found = false;
 		int cx, cy;
 
 		for (int y = 0; y < height; y++) for (int x = 0; x < width; x++) nodes[y][x].reset();
@@ -243,13 +243,13 @@ class PathFind {
 		opened.add(current);
 	}
 
-	private bit check(int x, int y) {
+	private bool check(int x, int y) {
 		if (x < 0 || x >= width ) return false;
 		if (y < 0 || y >= height) return false;
 		return !map[y][x];
 	}
 
-	private bit check(Node node, int dx, int dy) {
+	private bool check(Node node, int dx, int dy) {
 		return check(node.x + dx, node.y + dy);
 	}
 

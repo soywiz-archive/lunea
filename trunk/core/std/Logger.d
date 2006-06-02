@@ -26,7 +26,7 @@ module lunea.std.Logger;
 private import std.file;
 
 static class Logger {
-	static bit initialized = false;
+	static bool initialized = false;
 	static char[] fname = "debug.txt";
 
 	static void add(char[] line, int level = 0) {

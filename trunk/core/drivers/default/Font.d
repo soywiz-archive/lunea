@@ -96,7 +96,7 @@ class Font {
 		}
 	}
 
-	this(char[] name, int size, bit bold = false, bit italic = false, bit underline = false, bit strikeout = false) {
+	this(char[] name, int size, bool bold = false, bool italic = false, bool underline = false, bool strikeout = false) {
 		HFONT font;
 		HFONT oldfont;
 

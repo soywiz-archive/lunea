@@ -31,7 +31,7 @@ private import
 
 alias char[] string;
 
-char[][] list(char[] path, char[] pattern = "*", bit file = true, bit dir = false, bit tree = false) {
+char[][] list(char[] path, char[] pattern = "*", bool file = true, bool dir = false, bool tree = false) {
 	char[][] retval;
 
 	foreach (char[] cfile; std.file.listdir(path)) {
@@ -49,7 +49,7 @@ char[][] list(char[] path, char[] pattern = "*", bit file = true, bit dir = fals
 }
 
 
-string[] getSrcDFiles(string path, bit tree = false) {
+string[] getSrcDFiles(string path, bool tree = false) {
 	return list(path, "*.d", true, false, tree);
 }
 
@@ -78,7 +78,7 @@ char[] simplifyPath(char[] path) {
 	path = tolower(strip(replace(path, "/", "\\")));
 
 	char[][] npath;
-	bit first = true;
+	bool first = true;
 
 	foreach (char[] part; split(path, "\\")) {
 		part = strip(part);
@@ -101,7 +101,7 @@ char[] simplifyPath(char[] path) {
 	return std.string.join(npath, "\\");
 }
 
-bit comparePaths(char[] rp1, char[] p1, char[] rp2, char[] p2) {
+bool comparePaths(char[] rp1, char[] p1, char[] rp2, char[] p2) {
 	char[] r1 = simplifyPath(mergePaths(rp1, p1));
 	char[] r2 = simplifyPath(mergePaths(rp2, p2));
 

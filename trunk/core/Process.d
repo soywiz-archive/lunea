@@ -42,9 +42,9 @@ class CFlags {
 
 	public ushort _flags = Flags.execute | Flags.visible | Flags.alive;
 
-	bit execute() { return (_flags & Flags.execute) != 0; }
-	bit visible() { return (_flags & Flags.visible) != 0; }
-	bit alive  () { return (_flags & Flags.alive)   != 0; }
+	bool execute() { return (_flags & Flags.execute) != 0; }
+	bool visible() { return (_flags & Flags.visible) != 0; }
+	bool alive  () { return (_flags & Flags.alive)   != 0; }
 
 	void opAddAssign(ushort cflags) {
 		if (!(cflags & Flags.childs)) {
@@ -423,6 +423,14 @@ abstract class Process : ProcessCounter {
 		return null;
 	}
 
+	Process collision(ClassInfo type) {
+		return collision(type.name);
+	}
+
+	/*Process collision(Object object) {
+		return collision(object.type.name);
+	}*/
+
 	Process collision(Process[] p) {
 		foreach (Process cp; p) if (pcollision(cp)) return cp;
 		return null;
@@ -441,7 +449,8 @@ abstract class Process : ProcessCounter {
 		return retval;
 	}
 
-	bit pcollision(Process that) {
+	// FIX;TODO
+	bool pcollision(Process that) {
 		switch (collisionType) {
 			default:
 			case Collision.inner:

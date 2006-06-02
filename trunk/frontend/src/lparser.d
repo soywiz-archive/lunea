@@ -37,7 +37,7 @@ class LuneaParser {
 	public  string[]       resources;
 	public  string[]       libraries;
 	public  string         result;
-	public  bit            hasProgram = false;
+	public  bool           hasProgram = false;
 
 	private void pushConfig(string name, string value) {
 		configKeys   ~= name;
@@ -82,8 +82,8 @@ class LuneaParser {
 	public void parseFile(string filename, string code) {
 		int opn0 = 0, opn1 = 0, opn2 = 0;
 		auto lt = new LTokenizer(code);
-		LToken token, token2;
-		bit action_main = true;
+		LToken token, token2, token3;
+		bool action_main = true;
 		char[] action_main_name;
 
 		if ((filename in parsed) !is null) return;
@@ -214,10 +214,35 @@ class LuneaParser {
 							token2.value = "";
 						}
 					break;
+					// collision(Type1, Type2)
 					case "collision":
-						if (opn2 == 1) {
-							token.value = "override bit pcollision(Process that)";
-						}
+						/*if (opn2 == 1) {
+							token.value = "override bool pcollision(Process that)";
+						}*/
+						if (opn2 != 0) break;
+						if (lt.next.value != "(") throw(new Exception("Se esperaba ("));
+						lt.current.value = "";
+
+						token2 = lt.next;
+						if (token2.type != LToken.ttype.identifier) throw(new Exception("Se esperaba un identificador despues de collision"));
+
+						if (lt.next.value != ",") throw(new Exception("Se esperaba ,"));
+						lt.current.value = "";
+
+						token3 = lt.next;
+						if (token2.type != LToken.ttype.identifier) throw(new Exception("Se esperaba un identificador despues de collision"));
+
+						if (lt.next.value != ")") throw(new Exception("Se esperaba )"));
+						lt.current.value = "";
+
+						if (lt.next.value != "{") throw(new Exception("Se esperaba {"));
+						lt.current.value = "";
+
+						opn2++;
+
+						//token.value = "return cast(void)(this.paction = &" ~ token2.value ~ ");";
+						token.value = "bool collision_" ~ token2.value ~ "_" ~ token3.value ~ "(Process _p1, Process _p2) { " ~ token2.value ~ " p1 = cast(" ~ token2.value ~ ")_p1; " ~ token3.value ~ " p2 = cast(" ~ token3.value ~ ")_p2;";
+						token3.value = token2.value = "";
 					break;
 					default:
 					break;
@@ -279,7 +304,7 @@ class LuneaParser {
 			"#""line 0 \"import\"\n"
 		;
 
-		//foreach (string name, bit b; imports) prep ~= "public import " ~ name ~ ";";
+		//foreach (string name, bool b; imports) prep ~= "public import " ~ name ~ ";";
 		if (imports.length) prep ~= "import " ~ join(imports.keys, ", ") ~ ";\n\n";
 
 		prep ~=

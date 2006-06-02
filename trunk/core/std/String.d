@@ -44,7 +44,7 @@ static class String {
 	static string ltrim  (string s) { return std.string.stripl(s); }
 	static string rtrim  (string s) { return std.string.stripr(s); }
 
-	static string valueOf(bit    v) { return v ? "true" : "false"; }
+	static string valueOf(bool   v) { return v ? "true" : "false"; }
 	static string valueOf(char   v) { return std.string.toString(v); }
 	static string valueOf(string v) { return v; }
 	static string valueOf(int    v) { return std.string.toString(v); }

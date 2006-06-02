@@ -36,7 +36,7 @@ class Uri {
 	string query;
 	string fragment;
 
-	bit    absolute;
+	bool   absolute;
 	char   pathSeparator;
 
 	this(Uri uri) {
@@ -150,7 +150,7 @@ class Uri {
 		path = tolower(strip(replace(path, "\\", "/")));
 
 		string[] npath;
-		bit first = true;
+		bool first = true;
 
 		foreach (string part; split(path, "/")) {
 			part = strip(part);
@@ -179,14 +179,14 @@ class Uri {
 		return uri;
 	}
 
-	/*static bit compare(string rp1, string p1, string rp2, string p2) {
+	/*static bool compare(string rp1, string p1, string rp2, string p2) {
 		string r1 = simplify(merge(rp1, p1));
 		string r2 = simplify(merge(rp2, p2));
 
 		return (r1 == r2);
 	}*/
 
-	static bit compare(Uri u1, Uri u2) {
+	static bool compare(Uri u1, Uri u2) {
 		if (simplify(u1).path != simplify(u2).path) return false;
 		if (u1.absolute != u2.absolute) return false;
 		if (u1.unit != u2.unit) return false;

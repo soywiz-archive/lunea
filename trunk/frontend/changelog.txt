@@ -1,3 +1,7 @@
+2006-06-02  Carlos Ballesteros Velasco  <soywiz@gmail.com>
+	* Changed collision behaviour
+	* Replaced bit --> bool
+
 2006-01-02  Carlos Ballesteros Velasco  <soywiz@gmail.com>
 	* Discovered a bug using exceptions on a action block.
 

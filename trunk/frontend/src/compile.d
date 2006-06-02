@@ -46,7 +46,7 @@ bool compileResources(string[string] config, string[] resources) {
 	writef("Compilando recursos...");
 
 	bool retval = true;
-	bit vdebug = (trim(strtolower(config["debug"])) != "false");
+	bool vdebug = (trim(strtolower(config["debug"])) != "false");
 	string resource;
 
 	resource ~= "#include <windows.h>\n\n";
@@ -147,8 +147,8 @@ bool compileProgram(LuneaParser parser, string[] resources) {
 	string[string] config = parser.config;
 	string         data   = parser.result;
 
-	bit vdebug = (trim(strtolower(config["debug"])) != "false");
-	bit vtemp = (trim(strtolower(config["temp"])) != "false");
+	bool vdebug = (trim(strtolower(config["debug"])) != "false");
+	bool vtemp = (trim(strtolower(config["temp"])) != "false");
 
 	writef("Compilando programa...");
 
@@ -166,7 +166,7 @@ bool compileProgram(LuneaParser parser, string[] resources) {
 
 	data ~= resourcestr;
 
-	bit    retval   = true;
+	bool   retval   = true;
 	string ppath    = appPath;
 	string tempdf   = "~temp.d";
 	string tempf    = "~output.txt";

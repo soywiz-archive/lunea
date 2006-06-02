@@ -69,7 +69,7 @@ class File {
 		open(uri, flags);
 	}
 
-	static bit exists(string uris) {
+	static bool exists(string uris) {
 		return std.file.exists(uris) != 0;
 	}
 
@@ -85,11 +85,11 @@ class File {
 		std.file.remove(uris);
 	}
 
-	static bit isFile(string uris) {
+	static bool isFile(string uris) {
 		return std.file.isfile(uris) != 0;
 	}
 
-	static bit isDirectory(string uris) {
+	static bool isDirectory(string uris) {
 		return std.file.isdir(uris) != 0;
 	}
 }

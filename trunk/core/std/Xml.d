@@ -90,17 +90,17 @@ class Xml {
 		datai--;
 	}
 
-	private bit tryread(char c) {
+	private bool tryread(char c) {
 		if (read == c) return true;
 		unread();
 		return false;
 	}
 
-	private bit eof() {
+	private bool eof() {
 		return (datai >= data.length);
 	}
 
-	private bit white(char c) {
+	private bool white(char c) {
 		return (c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\0');
 	}
 
@@ -240,7 +240,7 @@ class Xml {
 									tagname ~= c;
 								}
 
-								bit empty = false;
+								bool empty = false;
 
 								while (!eof) {
 									if (c == '/') {
@@ -334,7 +334,7 @@ class Xml {
 		writef("%s", this.toString(true, true));
 	}
 
-	char[] toString(bit base = true, bit show = false, int level = 0) {
+	char[] toString(bool base = true, bool show = false, int level = 0) {
 		char[] prefix;
 		if (show) prefix = std.string.repeat("\t", level);
 
@@ -386,7 +386,7 @@ class Xml {
 		this.type = XML_NODE;
 	}
 
-	this(char[] data, bit textnode = false) {
+	this(char[] data, bool textnode = false) {
 		if (textnode) { this.text = data; this.type = XML_TEXT; return; }
 		this.data = data;
 		this.parse();
@@ -408,7 +408,7 @@ class Xml {
 		return attributes[name] = value;
 	}
 
-	bit hasAttribute(char[] name) {
+	bool hasAttribute(char[] name) {
 		name = std.string.tolower(std.string.strip(name));
 		return ((name in attributes) !is null);
 	}
@@ -449,24 +449,24 @@ class StreamParser {
 		streampos = v;
 	}
 
-	protected bit eof() {
+	protected bool eof() {
 		return (streampos >= streamlen);
 	}
 
-	protected bit parse(bit delegate() vparse) {
+	protected bool parse(bool delegate() vparse) {
 		int pos = tell;
-		bit retval = vparse();
+		bool retval = vparse();
 		if (!retval) seek(pos);
 		return retval;
 	}
 
-	protected bit parseChar(char c) {
+	protected bool parseChar(char c) {
 		if (!eof) return false;
 		if (read != c) { unread(); return false; }
 		return true;
 	}
 
-	protected bit parseChar(char[] cs) {
+	protected bool parseChar(char[] cs) {
 		if (!eof) return false;
 		char c = read();
 		for (int n = cs.length; n > 0; n--) if (cs[n] == c) return true;
@@ -474,55 +474,55 @@ class StreamParser {
 		return false;
 	}
 
-	protected bit parseNotChar(char[] cs) {
+	protected bool parseNotChar(char[] cs) {
 		if (!eof) return false;
 		char c = read();
 		for (int n = cs.length; n > 0; n--) if (cs[n] == c) { unread(); return false; }
 		return true;
 	}
 
-	protected bit isWhite(char c) {
+	protected bool isWhite(char c) {
 		return (c == ' ' || c == '\t' || c == '\n' || c == '\r');
 	}
 
-	protected bit isAlpha(char c) {
+	protected bool isAlpha(char c) {
 		return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
 	}
 
-	protected bit isNum(char c) {
+	protected bool isNum(char c) {
 		return (c >= '0' && c <= '9');
 	}
 
-	protected bit isAlnum(char c) {
+	protected bool isAlnum(char c) {
 		return isAlpha(c) || isNum(c);
 	}
 }
 
 class XmlCharset {
-	static public bit S(char c) {
+	static public bool S(char c) {
 		return (c == ' ' || c == '\t' || c == '\n' || c == '\r');
 	}
 
-	static public bit Letter(char c) {
+	static public bool Letter(char c) {
 		return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
 	}
 
-	static public bit Digit(char c) {
+	static public bool Digit(char c) {
 		return (c >= '0' && c <= '9');
 	}
 
-	static public bit NameChar(char c) {
+	static public bool NameChar(char c) {
 		return Letter(c) || Digit(c) || '.' || '-' || '_' || ':';
 	}
 
-	static public bit NameCharFirst(char c) {
+	static public bool NameCharFirst(char c) {
 		return Letter(c) || '_' || ':';
 	}
 }
 
 class XmlParser : StreamParser {
 	// [1] document ::= prolog element Misc*
-	private bit parseDocument() {
+	private bool parseDocument() {
 		//if (!parse(&parseProlog )) return false;
 		//if (!parse(&parseElement)) return false;
 		//parse(&parseMisc);
@@ -532,7 +532,7 @@ class XmlParser : StreamParser {
 	// [2] Char ::= #x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]
 
 	// [3] S ::= (#x20 | #x9 | #xD | #xA)+
-	private bit parseS() {
+	private bool parseS() {
 		static char[] pattern = "\x20\x09\x0D\x0A";
 		if (!parseChar(pattern)) return false;
 		while (!eof && parseChar(pattern)) { }
@@ -540,7 +540,7 @@ class XmlParser : StreamParser {
 	}
 
 	// [4] NameChar	::= Letter | Digit | '.' | '-' | '_' | ':' | CombiningChar | Extender
-	private bit parseNameChar() {
+	private bool parseNameChar() {
 		char c = read;
 
 		if (isAlnum(c)) return true;
@@ -551,7 +551,7 @@ class XmlParser : StreamParser {
 	}
 
 	// [5] Name	::= (Letter | '_' | ':') (NameChar)*
-	private bit parseName() {
+	private bool parseName() {
 		char c = read;
 
 		if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_' || c == ':') {
@@ -564,7 +564,7 @@ class XmlParser : StreamParser {
 	}
 
 	// [6] Names ::= Name (#x20 Name)*
-	private bit parseNames() {
+	private bool parseNames() {
 		if (!parse(&parseName)) return false;
 
 		while (true) {
@@ -577,7 +577,7 @@ class XmlParser : StreamParser {
 	}
 
 	// [7] Nmtoken ::= (NameChar)+
-	private bit parseNmtoken() {
+	private bool parseNmtoken() {
 		if (!parse(&parseNameChar)) return false;
 		while (parse(&parseNameChar)) { }
 		return true;
@@ -595,20 +595,20 @@ class XmlParser : StreamParser {
 	}
 
 	// [9] EntityValue ::= '"' ([^%&"] | PEReference | Reference)* '"' | "'" ([^%&'] | PEReference | Reference)* "'"
-	private bit parseEntityValue() {
+	private bool parseEntityValue() {
 		if (parse(&parseEntityValue1)) return true;
 		if (parse(&parseEntityValue2)) return true;
 		return false;
 	}
 
-	private bit parseEntityValue1() {
+	private bool parseEntityValue1() {
 		if (!parseChar('"')) return false;
 		while (!eof) { if (!parseNotChar("%&\"") && !parse(&parsePEReference) && !parse(&parseReference)) break; }
 		if (!parseChar('"')) return false;
 		return true;
 	}
 
-	private bit parseEntityValue2() {
+	private bool parseEntityValue2() {
 		if (!parseChar('\'')) return false;
 		while (!eof) { if (!parseNotChar("%&'") && !parse(&parsePEReference) && !parse(&parseReference)) break; }
 		if (!parseChar('\'')) return false;
@@ -616,20 +616,20 @@ class XmlParser : StreamParser {
 	}
 
 	//[10] AttValue	::= '"' ([^<&"] | Reference)* '"' |  "'" ([^<&'] | Reference)* "'"
-	private bit parseAttValue() {
+	private bool parseAttValue() {
 		if (parse(&parseAttValue1)) return true;
 		if (parse(&parseAttValue2)) return true;
 		return false;
 	}
 
-	private bit parseAttValue1() {
+	private bool parseAttValue1() {
 		if (!parseChar('"')) return false;
 		while (!eof) { if (!parseNotChar("<&\"") && !parse(&parseReference)) break; }
 		if (!parseChar('"')) return false;
 		return true;
 	}
 
-	private bit parseAttValue2() {
+	private bool parseAttValue2() {
 		if (!parseChar('\'')) return false;
 		while (!eof) { if (!parseNotChar("<&'") && !parse(&parseReference)) break; }
 		if (!parseChar('\'')) return false;
@@ -637,7 +637,7 @@ class XmlParser : StreamParser {
 	}
 
 	// [40] STag ::= '<' Name (S Attribute)* S? '>'
-	private bit parseEntitySTag() {
+	private bool parseEntitySTag() {
 		if (!parseChar('<')) return false;
 		if (!parse(&parseName)) return false;
 		while (true) if (!parse(&parseEntitySTag1)) break;
@@ -646,14 +646,14 @@ class XmlParser : StreamParser {
 		return true;
 	}
 
-	private bit parseEntitySTag1() {
+	private bool parseEntitySTag1() {
 		if (!parse(&parseS)) return false;
 		if (!parse(&parseAttribute)) return false;
 		return true;
 	}
 
 	// [41] Attribute ::= Name Eq AttValue
-	private bit parseAttribute() {
+	private bool parseAttribute() {
 		if (!parse(&parseName)) return false;
 		if (!parseChar('=')) return false;
 		if (!parse(&parseAttValue)) return false;

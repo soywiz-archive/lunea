@@ -26,7 +26,7 @@ module lunea.driver.Driver;
 private import lunea.driver.Main;
 
 public class LuneaDriver {
-	static bit cdebug = false;
+	static bool cdebug = false;
 
 	static void onStart() {
 		if (!Screen.setted) Screen.set(640, 480, title);

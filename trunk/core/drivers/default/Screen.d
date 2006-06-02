@@ -60,7 +60,7 @@ version (Windows) {
 Font debugFont;
 
 class Screen {
-	static bit setted = false;
+	static bool setted = false;
 	static int width = 0, height = 0;
 	static SDL_Surface *screensf;
 
@@ -82,7 +82,7 @@ class Screen {
 		SDL_QuitSubSystem(SDL_INIT_VIDEO);
 	}
 
-	static void set(int width, int height, char[] title, bit fullscreen = false, SDL_Surface *surface = null) {
+	static void set(int width, int height, char[] title, bool fullscreen = false, SDL_Surface *surface = null) {
 		Screen.width  = width;
 		Screen.height = height;
 		Screen.setted = true;
@@ -148,7 +148,7 @@ class Screen {
 		);
 	}
 
-	static void pushClip(Rect rect, bit intersect = true) {
+	static void pushClip(Rect rect, bool intersect = true) {
 		clips ~= cclip;
 		if (intersect) rect = Rect.intersect(cclip, rect);
 		clip(rect);

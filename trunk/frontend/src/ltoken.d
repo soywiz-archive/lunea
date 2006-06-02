@@ -28,7 +28,7 @@ private import std.file, std.stdio, std.c.stdio, std.string, std.ctype, std.conv
 private import lunea.frontend.util;
 
 class LToken {
-	bit ignore;
+	bool ignore;
 
 	enum ttype {
 		operator,
@@ -40,12 +40,12 @@ class LToken {
 
 	ttype type;
 
-	bit identifier = false;
-	bit numeric = false;
+	bool identifier = false;
+	bool numeric = false;
 	int line;
 	char[] value;
 
-	this(char[] value, int line, bit ignore = false, ttype type = ttype.operator) {
+	this(char[] value, int line, bool ignore = false, ttype type = ttype.operator) {
 		this.value  = value;
 		this.ignore = ignore;
 		this.line   = line;
@@ -419,7 +419,7 @@ class LTokenizer {
 						// TODO
 						int pos = 0;
 						int base = 10;
-						bit s0  = false, done = false;
+						bool s0  = false, done = false;
 
 						while (p < code.length) {
 							// Starts with 0

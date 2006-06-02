@@ -102,11 +102,11 @@ class Channel {
 		Mix_FadeOutChannel(channel, ms);
 	}
 
-	bit playing() {
+	bool playing() {
 		return (Mix_Playing(channel) != 0);
 	}
 
-	bit playing(bit set) {
+	bool playing(bit set) {
 		set ? resume() : pause();
 	}
 }

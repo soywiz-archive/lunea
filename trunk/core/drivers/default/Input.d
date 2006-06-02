@@ -43,7 +43,7 @@ static class Input {
 				break;
 				case SDL_MOUSEBUTTONDOWN:
 				case SDL_MOUSEBUTTONUP:
-					bit bset = (event.type == SDL_MOUSEBUTTONDOWN);
+					bool bset = (event.type == SDL_MOUSEBUTTONDOWN);
 					int idx;
 
 					switch (event.button.button) {
@@ -75,7 +75,7 @@ static class Input {
 				break;
 				case SDL_KEYDOWN:
 				case SDL_KEYUP:
-					bit bset = (event.type == SDL_KEYDOWN);
+					bool bset = (event.type == SDL_KEYDOWN);
 					int idx = event.key.keysym.sym;
 
 					KeyboardTemp[idx] = bset;
@@ -106,9 +106,9 @@ static class Input {
 }
 
 class CKeyboard {
-	public bit keys[SDLK_LAST];
-	public bit pressed[SDLK_LAST];
-	public bit released[SDLK_LAST];
+	public bool keys[SDLK_LAST];
+	public bool pressed[SDLK_LAST];
+	public bool released[SDLK_LAST];
 	public string buffer;
 
 	this() {
@@ -120,7 +120,7 @@ class CKeyboard {
 		return keys[index];
 	}
 
-	bool opIndexAssign(bit value, int index) {
+	bool opIndexAssign(bool value, int index) {
 		return keys[index] = value;
 	}
 
@@ -138,8 +138,8 @@ class CMouse {
 	public bit[5] pressed;
 	public bit[5] released;
 
-	public bit left () { return b[0]; }
-	public bit right() { return b[1]; }
+	public bool left () { return b[0]; }
+	public bool right() { return b[1]; }
 
 	public void hide() { SDL_ShowCursor(false); }
 	public void show() { SDL_ShowCursor(true ); }
