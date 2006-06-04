@@ -451,6 +451,10 @@ abstract class Process : ProcessCounter {
 
 	// FIX;TODO
 	bool pcollision(Process that) {
+		if (interactions.hasInteraction("collision", this, that)) {
+			return cast(bool)interactions.interact("collision", this, that);
+		}
+
 		switch (collisionType) {
 			default:
 			case Collision.inner:
@@ -570,7 +574,7 @@ class ProcessManager : Process {
 		char[] ptype = p.type;
 		if ((ptype in cnlistp) is null) return;
 		int[Process] clistp = cnlistp[ptype];
-		Process[]    clist  = cnlist[ptype];
+		Process[]    *clist  = &cnlist[ptype];
 
 		if ((p in clistp) is null) return;
 
@@ -605,6 +609,24 @@ class ProcessManager : Process {
 			retval ~= "\tDUMP(E) {";
 				foreach (char[] s; dumpSE(2)) retval ~= s;
 			retval ~= "\t}";
+			retval ~= "\tDUMP(TYPE) {";
+				foreach (char[] key, Process[] pl; cnlist) {
+					foreach (Process p; pl) {
+						retval ~= "\t\t- " ~ std.string.toString(cast(int)cast(int *)p);
+					}
+				}
+			retval ~= "\t}";
+			retval ~= "\tDUMP(TYPE2) {";
+				foreach (char[] key, int[Process] pl; cnlistp) {
+					foreach (Process p, int key2; pl) {
+						retval ~= "\t\t- " ~ std.string.toString(cast(int)cast(int *)p);
+					}
+				}
+			retval ~= "\t}";
+/*
+	public Process[][char[]]    cnlist;
+	public int[Process][char[]] cnlistp;
+*/
 		retval ~= "}";
 
 		return retval;
@@ -613,14 +635,41 @@ class ProcessManager : Process {
 	uint length() { return list.length; }
 }
 
+alias bool function(Process, Process) InteractionCallback;
+
+class Interactions {
+	InteractionCallback[ClassInfo][ClassInfo][char[]] list;
+
+	void add(char[] type, ClassInfo i1, ClassInfo i2, InteractionCallback func) {
+		list[type][i1][i2] = func;
+	}
+
+	bool hasInteraction(char[] type, Process p1, Process p2) {
+		if (p1 is null || p2 is null) return false;
+		if ((type in list) is null) return false;
+		if ((p1.classinfo in list[type]) !is null && (p2.classinfo in list[type][p1.classinfo]) !is null) return true;
+		if ((p2.classinfo in list[type]) !is null && (p1.classinfo in list[type][p2.classinfo]) !is null) return true;
+		return false;
+	}
+
+	int interact(char[] type, Process p1, Process p2) {
+		InteractionCallback func;
+		if ((p1.classinfo in list[type]) !is null && (func = list[type][p1.classinfo][p2.classinfo]) !is null) return func(p1, p2);
+		if ((p2.classinfo in list[type]) !is null && (func = list[type][p2.classinfo][p1.classinfo]) !is null) return func(p2, p1);
+		return 0;
+	}
+}
+
 void exit() { luneaRunning = false; }
 
 ProcessManager pmanager;
 Process        mprocess;
 Process        cprocess;
+Interactions   interactions;
 
 static this() {
 	pmanager = new ProcessManager;
+	interactions = new Interactions();
 }
 
 static ~this() {

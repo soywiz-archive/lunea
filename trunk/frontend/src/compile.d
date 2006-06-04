@@ -162,6 +162,15 @@ bool compileProgram(LuneaParser parser, string[] resources) {
 		resourcestr ~= "\tlunea.Resource.__resource_list[\"" ~ addslashes(resources[n]) ~ "\"] = " ~ std.string.toString(101 + n) ~ ";\n";
 	}
 
+	for (int n = 0; n < parser.interactionsType.length; n++) {
+		string type   = parser.interactionsType[n];
+		string value1 = parser.interactionsValue1[n];
+		string value2 = parser.interactionsValue2[n];
+		string func = parser.interactionsFunctions[n];
+
+		resourcestr ~= "\tinteractions.add(\"" ~ type ~ "\", " ~ value1 ~ ".classinfo, " ~ value2 ~ ".classinfo, &" ~ func ~ ");\n";
+	}
+
 	resourcestr ~= "}\n\n";
 
 	data ~= resourcestr;

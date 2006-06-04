@@ -31,6 +31,7 @@ private import
 
 class LuneaParser {
 	private string[]       configKeys, configValues;
+	public  string[]       interactionsType, interactionsValue1, interactionsValue2, interactionsFunctions;
 	public  string[string] config;
 	public  bit[string]    imports;
 	public  bit[string]    parsed;
@@ -216,33 +217,47 @@ class LuneaParser {
 					break;
 					// collision(Type1, Type2)
 					case "collision":
-						/*if (opn2 == 1) {
-							token.value = "override bool pcollision(Process that)";
-						}*/
-						if (opn2 != 0) break;
-						if (lt.next.value != "(") throw(new Exception("Se esperaba ("));
-						lt.current.value = "";
+						if (opn2 == 0) {
+							char[] type1, type2;
+							char[] name1, name2;
 
-						token2 = lt.next;
-						if (token2.type != LToken.ttype.identifier) throw(new Exception("Se esperaba un identificador despues de collision"));
+							if (lt.next.value != "(") throw(new Exception("Se esperaba ("));
+							lt.current.value = "";
 
-						if (lt.next.value != ",") throw(new Exception("Se esperaba ,"));
-						lt.current.value = "";
+							if (lt.next.type != LToken.ttype.identifier) throw(new Exception("Se esperaba un identificador despues de collision"));
+							type1 = lt.current.value;
+							lt.current.value = "";
 
-						token3 = lt.next;
-						if (token2.type != LToken.ttype.identifier) throw(new Exception("Se esperaba un identificador despues de collision"));
+							if (lt.next.type != LToken.ttype.identifier) throw(new Exception("Se esperaba un identificador despues de collision"));
+							name1 = lt.current.value;
+							lt.current.value = "";
 
-						if (lt.next.value != ")") throw(new Exception("Se esperaba )"));
-						lt.current.value = "";
+							if (lt.next.value != ",") throw(new Exception("Se esperaba ,"));
+							lt.current.value = "";
 
-						if (lt.next.value != "{") throw(new Exception("Se esperaba {"));
-						lt.current.value = "";
+							if (lt.next.type != LToken.ttype.identifier) throw(new Exception("Se esperaba un identificador despues de collision"));
+							type2 = lt.current.value;
+							lt.current.value = "";
 
-						opn2++;
+							if (lt.next.type != LToken.ttype.identifier) throw(new Exception("Se esperaba un identificador despues de collision"));
+							name2 = lt.current.value;
+							lt.current.value = "";
 
-						//token.value = "return cast(void)(this.paction = &" ~ token2.value ~ ");";
-						token.value = "bool collision_" ~ token2.value ~ "_" ~ token3.value ~ "(Process _p1, Process _p2) { " ~ token2.value ~ " p1 = cast(" ~ token2.value ~ ")_p1; " ~ token3.value ~ " p2 = cast(" ~ token3.value ~ ")_p2;";
-						token3.value = token2.value = "";
+							if (lt.next.value != ")") throw(new Exception("Se esperaba )"));
+							lt.current.value = "";
+
+							if (lt.next.value != "{") throw(new Exception("Se esperaba {"));
+							lt.current.value = "";
+
+							opn2++;
+
+							interactionsType      ~= "collision";
+							interactionsValue1    ~= type1;
+							interactionsValue2    ~= type2;
+							interactionsFunctions ~= "collision_" ~ type1 ~ "_" ~ type2;
+
+							token.value = "bool collision_" ~ type1 ~ "_" ~ type2 ~ "(Process _p1, Process _p2) { " ~ type1 ~ " " ~ name1 ~ " = cast(" ~ type1 ~ ")_p1; " ~ type2 ~ " " ~ name2 ~ " = cast(" ~ type2 ~ ")_p2;";
+						}
 					break;
 					default:
 					break;
@@ -256,7 +271,11 @@ class LuneaParser {
 
 		if (!action_main) throwfe("El proceso '" ~ action_main_name ~ "' no define un action main { }");
 
-		result ~= "#""line 1 \"" ~ filename ~ "\"\n" ~ lt.value ~ "\n";
+		char[] rfilename = filename;
+		if (rfilename.length > 2 && rfilename[0..2] == ".\\") {
+			rfilename = filename[2..rfilename.length];
+		}
+		result ~= "#""line 1 \"" ~ rfilename ~ "\"\n" ~ lt.value ~ "\n";
 	}
 
 	public void parseFinish() {
@@ -295,6 +314,7 @@ class LuneaParser {
 
 		pushImport("lunea.Lunea");
 		pushImport("lunea.Process");
+		//pushImport("lunea.Interactions");
 		pushImport("lunea.driver.Main");
 		pushImport("lunea.std.All");
 
