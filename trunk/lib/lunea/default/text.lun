@@ -1,0 +1,47 @@
+process Text {
+	enum Align {
+		left = 0,
+		top = 0,
+		center = 1,
+		middle = 1,
+		right = 2,
+		bottom = 2
+	}
+
+	Font font;
+	string text;
+	Color color;
+	Align halign;
+	Align valign;
+
+	this(string text = "", real x = 0, real y = 0, Align halign = Align.left, Align valign = Align.top, Color color = Color.white, Font font = null) {
+		if (font is null) font = debugFont;
+		this.font  = font;
+		this.text  = text;
+		this.color = color;
+		this.x = x;
+		this.y = y;
+		this.halign = halign;
+		this.valign = valign;
+	}
+
+	action draw {
+		if (!font) return;
+		real rx = x, ry = y;
+
+		switch (halign) {
+			case Align.center: rx -= font.width(text) / 2; break;
+			case Align.right: rx -= font.width(text); break;
+			default: break;
+		}
+
+		switch (valign) {
+			case Align.middle: ry -= font.height / 2; break;
+			case Align.bottom: ry -= font.height; break;
+			default: break;
+		}
+
+
+		font.draw(text, rx, ry, color);
+	}
+}

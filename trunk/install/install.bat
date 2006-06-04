@@ -46,8 +46,10 @@ GOTO %RETERR%
 
 :install
 ECHO Instalando...
+IF EXIST "..\bin\dm" GOTO nodmc
 ECHO Descomprimiendo dmc.zip...
 unzip -u -o dm*c.zip  -d ..\bin > NUL 2> NUL
+:nodmc
 IF NOT %ERRORLEVEL%==0 GOTO insterror
 ECHO Descomprimiendo dmd.zip...
 unzip -u -o dmd*.zip -d ..\bin > NUL 2> NUL
@@ -78,6 +80,7 @@ IF NOT %ERRORLEVEL%==0 GOTO insterror
 :finish_install
 
 ECHO Instalacion completada satisfactoriamente
+PAUSE
 GOTO end
 
 :insterror

@@ -49,10 +49,13 @@ bool compileResources(string[string] config, string[] resources) {
 	bool vdebug = (trim(strtolower(config["debug"])) != "false");
 	string resource;
 
+	// Deshabilitado el debug (temporalmente)
+	vdebug = false;
+
 	resource ~= "#include <windows.h>\n\n";
 
 	if (config["icon"].length && std.file.exists("res\\" ~ config["icon"])) {
-		resource ~= "100 ICON PRELOAD \"" ~ addslashes("res\\" ~ config["icon"]) ~ "\"\n";
+		resource ~= "icon ICON DISCARDABLE \"" ~ addslashes("res\\" ~ config["icon"]) ~ "\"\n";
 	}
 
 	for (int n = 0; n < resources.length; n++) {

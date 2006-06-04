@@ -117,6 +117,10 @@ class LuneaParser {
 						opn2++;
 					break;
 					case "}":
+						if (opn2 == 1 && !action_main) {
+							token.value = "void main() { while(true)frame(); } }";
+						}
+
 						if (opn2 <= 0) throw(new Exception("Error: " ~ __FILE__ ~ "(" ~ std.string.toString(__LINE__) ~ ")"));
 						opn2--;
 					break;
@@ -166,24 +170,26 @@ class LuneaParser {
 					case "program":
 						if (opn2 != 0) break;
 
-						if (!action_main) throw(new Exception("El proceso '" ~ action_main_name ~ "' no define un action main { }"));
+						//if (!action_main) throw(new Exception("El proceso '" ~ action_main_name ~ "' no define un action main { }"));
 
 						hasProgram = true;
 						token.value = "class MainProcess : Process";
 
-						action_main = false; action_main_name = "program";
+						action_main = false;
+						action_main_name = "program";
 					break;
 					case "process":
 						if (opn2 != 0) break;
 
-						if (!action_main) throw(new Exception("El proceso '" ~ action_main_name ~ "' no define un action main { }"));
+						//if (!action_main) throw(new Exception("El proceso '" ~ action_main_name ~ "' no define un action main { }"));
 
 						token2 = lt.next;
 						if (token2.type != LToken.ttype.identifier) throw(new Exception("Se esperaba un identificador despues de process"));
 
 						token.value = "class " ~ token2.value ~ " : Process";
 
-						action_main = false; action_main_name = token2.value;
+						action_main = false;
+						action_main_name = token2.value;
 
 						token2.value = "";
 					break;
@@ -269,7 +275,7 @@ class LuneaParser {
 			throwfe(e.toString);
 		}
 
-		if (!action_main) throwfe("El proceso '" ~ action_main_name ~ "' no define un action main { }");
+		//if (!action_main) throwfe("El proceso '" ~ action_main_name ~ "' no define un action main { }");
 
 		char[] rfilename = filename;
 		if (rfilename.length > 2 && rfilename[0..2] == ".\\") {

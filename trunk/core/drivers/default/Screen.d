@@ -37,24 +37,29 @@ char[] SDL_GetErrorS() {
 }
 
 version (Windows) {
-	DWORD   SetClassLongA (HWND hWnd, int nIndex, LONG dwNewLong );
-	HICON   LoadIconA     (HINSTANCE hInstance, LPCSTR lpIconName);
-	HGLOBAL LoadResource  (HMODULE hModule, HRSRC hResInfo);
-	HRSRC   FindResourceA (HMODULE hModule, LPCTSTR lpName, LPCTSTR lpType);
-	DWORD   SizeofResource(HMODULE hModule, HRSRC hResInfo);
+	extern (Windows) {
+		DWORD   SetClassLongA (HWND hWnd, int nIndex, LONG dwNewLong);
+		HICON   LoadIconA     (HINSTANCE hInstance, LPCSTR lpIconName);
+		DWORD   DestroyIcon  (HICON hIcon);
+		HGLOBAL LoadResource  (HMODULE hModule, HRSRC hResInfo);
+		HRSRC   FindResourceA (HMODULE hModule, LPCTSTR lpName, LPCTSTR lpType);
+		DWORD   SizeofResource(HMODULE hModule, HRSRC hResInfo);
+		//HMODULE GetModuleHandleA(LPCSTR lpModuleName);
 
-	const int GCL_HICON = (-14);
+		const int GCL_HICON = (-14);
 
-	const int IDI_APPLICATION = 32512;
-	const int IDI_HAND        = 32513;
-	const int IDI_QUESTION    = 32514;
-	const int IDI_EXCLAMATION = 32515;
-	const int IDI_ASTERISK    = 32516;
-	const int IDI_WINLOGO     = 32517;
+		//const int IDI_APPLICATION = 32512;
+		const int IDI_HAND        = 32513;
+		const int IDI_QUESTION    = 32514;
+		const int IDI_EXCLAMATION = 32515;
+		const int IDI_ASTERISK    = 32516;
+		const int IDI_WINLOGO     = 32517;
 
-	alias SetClassLongA SetClassLong;
-	alias LoadIconA LoadIcon;
-	alias FindResourceA FindResource;
+		alias SetClassLongA SetClassLong;
+		alias LoadIconA LoadIcon;
+		alias FindResourceA FindResource;
+		alias GetModuleHandleA GetModuleHandle;
+	}
 }
 
 Font debugFont;
@@ -79,8 +84,12 @@ class Screen {
 	}
 
 	static ~this() {
+		DestroyIcon(icon);
 		SDL_QuitSubSystem(SDL_INIT_VIDEO);
 	}
+
+	static private HICON icon;
+
 
 	static void set(int width, int height, char[] title, bool fullscreen = false, SDL_Surface *surface = null) {
 		Screen.width  = width;
@@ -91,10 +100,17 @@ class Screen {
 
 		if (surface !is null) SDL_WM_SetIcon(surface, null);
 
-		//SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-		if ((screensf = SDL_SetVideoMode(width, height, 0, SDL_OPENGLBLIT)) == null) {
+		HWND hwnd;
+		HINSTANCE handle = GetModuleHandle(null);
+		icon = LoadIcon(handle, "icon");
+		SDL_SysWMinfo wminfo; SDL_GetWMInfo(&wminfo);
+		hwnd = cast(HANDLE)wminfo.window;
+		SetClassLong(hwnd, GCL_HICON, cast(LONG)icon);
+
+		if ((screensf = SDL_SetVideoMode(width, height, 0, SDL_OPENGLBLIT | SDL_GL_DOUBLEBUFFER | SDL_DOUBLEBUF)) == null) {
 			throw new Exception("Unable to create SDL screen: " ~ SDL_GetErrorS());
 		}
+		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
 		initViewport();
 

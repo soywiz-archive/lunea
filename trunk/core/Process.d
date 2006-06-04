@@ -623,10 +623,7 @@ class ProcessManager : Process {
 					}
 				}
 			retval ~= "\t}";
-/*
-	public Process[][char[]]    cnlist;
-	public int[Process][char[]] cnlistp;
-*/
+
 		retval ~= "}";
 
 		return retval;
