@@ -47,6 +47,7 @@ void showHeader() {
 			char[] cfile, cver;
 			cver = "unknown";
 			if (file == "CVS") continue;
+			if (file == ".svn") continue;
 			if (!isdir(driversp ~ "/" ~ file)) continue;
 			if (exists(cfile = driversp ~ "/" ~ file ~ "/VERSION")) {
 				cver = cast(char[])read(cfile);

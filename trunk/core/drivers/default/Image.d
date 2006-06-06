@@ -29,6 +29,19 @@ private import opengl, SDL, SDL_image;
 private import std.math;
 private import lunea.Resource;
 
+/*
+
+Normal:
+GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA
+
+Light:
+GL_ONE, GL_ONE
+
+Dark:
+GL_ZERO, GL_SRC_COLOR
+
+*/
+
 class Image {
 	Image parent;
 

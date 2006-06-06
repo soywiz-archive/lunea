@@ -13,6 +13,7 @@ process Text {
 	Color color;
 	Align halign;
 	Align valign;
+	int shadow, border;
 
 	this(string text = "", real x = 0, real y = 0, Align halign = Align.left, Align valign = Align.top, Color color = Color.white, Font font = null) {
 		if (font is null) font = debugFont;
@@ -23,6 +24,7 @@ process Text {
 		this.y = y;
 		this.halign = halign;
 		this.valign = valign;
+		this.shadow = 0;
 	}
 
 	action draw {
@@ -41,6 +43,20 @@ process Text {
 			default: break;
 		}
 
+		if (shadow > 0) {
+			Color scolor = new Color(0, 0, 0, 1 / cast(real)shadow);
+			for (int n = shadow - 1; n > 0; n--) {
+				font.draw(text, rx + n, ry + n, scolor);
+			}
+		}
+
+		if (border > 0) {
+			for (int y = -1; y <= 1; y++) {
+				for (int x = -1; x <= 1; x++) {
+					font.draw(text, rx + x, ry + y, Color.black);
+				}
+			}
+		}
 
 		font.draw(text, rx, ry, color);
 	}

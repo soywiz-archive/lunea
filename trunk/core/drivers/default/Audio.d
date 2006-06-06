@@ -23,6 +23,8 @@
 
 module lunea.driver.Audio;
 
+private import lunea.Resource;
+
 import lunea.Lunea;
 import SDL_mixer, std.string;
 
@@ -35,16 +37,34 @@ class Sample {
 		sample = null;
 	}
 
-	static Sample fromFile(string fileName) {
+	static Sample fromFile(string filename) {
 		Sample sample = new Sample;
-		sample.sample = Mix_LoadWAV(std.string.toStringz(fileName));
-		//sample.sample = Mix_LoadWAV_RW(SDL_RWFromFile(std.string.toStringz(fileName), "rb"), 1);
-		if (!sample.sample) throw(new Exception("Can't load Audio file: '" ~ fileName ~ "'"));
+		sample.sample = Mix_LoadWAV(std.string.toStringz(filename));
+		if (!sample.sample) throw(new Exception("Can't load Audio file: '" ~ filename ~ "'"));
+		return sample;
+	}
+
+	static Sample fromResource(string filename) {
+		if (!Resources.have(filename)) throw(new Exception("Can't load resource: " ~ filename ~ "'"));
+		Sample sample = new Sample;
+		sample.sample = Mix_LoadWAV_RW(SDL_RWFromMem(Resources.get(filename), Resources.size(filename)), -1);
+		if (!sample.sample) throw(new Exception("Can't load Audio file: '" ~ filename ~ "'"));
 		return sample;
 	}
 
 	~this() {
 		if (sample !is null) Mix_FreeChunk(sample);
+	}
+
+	private real vvolume = 1.0;
+
+	real volume(real v) {
+		Mix_VolumeChunk(this.sample, cast(int)(vvolume = v * 128));
+		return vvolume;
+	}
+
+	real volume() {
+		return vvolume = ((cast(real)Mix_VolumeChunk(this.sample, -1)) / 128);
 	}
 }
 
@@ -113,6 +133,7 @@ class Channel {
 
 class Music {
 	Mix_Music *music;
+	char[] tempfile;
 
 	this() {
 		music = null;
@@ -120,15 +141,50 @@ class Music {
 
 	~this() {
 		if (music !is null) Mix_FreeMusic(music);
+		if (tempfile) unlink(tempfile);
 	}
 
-	static Music fromFile(string fileName) {
+	static Music fromFile(string filename) {
 		Music music = new Music;
 
-		if (fileName.length) {
-			music.music = Mix_LoadMUS(std.string.toStringz(fileName));
+		if (filename.length) {
+			music.music = Mix_LoadMUS(std.string.toStringz(filename));
 			if (music.music is null) throw(new Exception("Can't Load Music: '" ~ std.string.toString(Mix_GetError()) ~ "'"));
 		}
+
+		return music;
+	}
+
+	static Music fromResource(string filename) {
+		if (!Resources.have(filename)) throw(new Exception("Can't load resource: " ~ filename ~ "'"));
+
+		Music music = new Music;
+
+		char *tname = tempnam(null, "mus_");
+		music.tempfile = std.string.toString(tname);
+
+		//Resources.get(filename), Resources.size(filename)
+
+		//char[] array;
+		//array = new
+		//array.ptr = Resources.get(filename);
+		//array.length = Resources.size(filename);
+
+		FILE *file = fopen(tname, "wb");
+		fwrite(Resources.get(filename), 1, Resources.size(filename), file);
+		//fwrite();
+		fclose(file);
+
+		//write(tname, array);
+
+		if (filename.length) {
+			music.music = Mix_LoadMUS(tname);
+			if (music.music is null) throw(new Exception("Can't Load Music: '" ~ std.string.toString(Mix_GetError()) ~ "'"));
+		}
+
+		unlink(music.tempfile);
+
+		//free(tname);
 
 		return music;
 	}
@@ -148,6 +204,8 @@ class Music {
 			result = Mix_FadeInMusicPos(music, loops, fadems, position);
 		}
 
+		volume = vvolume;
+
 		if (result != 0) {
 			throw(new Exception("Can't Play Music: '" ~ std.string.toString(Mix_GetError()) ~ "'"));
 		}
@@ -163,6 +221,17 @@ class Music {
 
 	deprecated void halt() {
 		stop();
+	}
+
+	private static real vvolume = 1.0;
+
+	static real volume(real v) {
+		Mix_VolumeMusic(cast(int)((vvolume = v) * 128));
+		return v;
+	}
+
+	static real volume() {
+		return cast(real)(Mix_VolumeMusic(-1)) / 128;
 	}
 }
 
@@ -203,7 +272,7 @@ class Audio {
 		return channels[channelNumber];
 	}
 
-	void play(Music music, int loops = 1, int fadems = 0, double position = 0.0) {
+	void play(Music music, int loops = LOOP_INFINITE, int fadems = 0, double position = 0.0) {
 		if (music is null) return;
 		music.play(loops, fadems, position);
 	}
