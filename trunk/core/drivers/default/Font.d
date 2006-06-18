@@ -198,7 +198,7 @@ class Font {
 	}
 
 	this(char[] name, int size, bool bold = false, bool italic = false, bool underline = false, bool strikeout = false) {
-		if (std.string.find(name, '.') == -1) {
+		if (std.string.find(std.string.tolower(name), ".ttf") == -1) {
 			font = new FontWindows(name, size, bold, italic, underline, strikeout);
 		} else {
 			fontttf = new FontTTF(name, size);
