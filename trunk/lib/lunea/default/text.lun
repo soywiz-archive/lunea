@@ -28,7 +28,8 @@ process Text {
 	}
 
 	action draw {
-		if (!font) return;
+		if (font is null) return;
+
 		real rx = x, ry = y;
 
 		switch (halign) {
@@ -45,9 +46,7 @@ process Text {
 
 		if (shadow > 0) {
 			Color scolor = new Color(0, 0, 0, 1 / cast(real)shadow);
-			for (int n = shadow - 1; n > 0; n--) {
-				font.draw(text, rx + n, ry + n, scolor);
-			}
+			for (int n = shadow - 1; n > 0; n--) font.draw(text, rx + n, ry + n, scolor);
 		}
 
 		if (border > 0) {

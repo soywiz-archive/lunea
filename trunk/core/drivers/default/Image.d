@@ -65,6 +65,16 @@ class Image {
 		glDeleteTextures(1, &gltex);
 	}
 
+	public Image setCXCY() {
+		return setCXCY(0, 0);
+	}
+
+	public Image setCXCY(real cx, real cy) {
+		this.cx = cast(int)(cx * w);
+		this.cy = cast(int)(cy * h);
+		return this;
+	}
+
 	public void fastDraw(int x, int y) {
 		y--;
 		glBindTexture(GL_TEXTURE_2D, (parent is null) ? gltex : parent.gltex);
@@ -183,6 +193,69 @@ class Image {
 		texp[2][0] = sx2; texp[2][1] = sy2;
 		texp[3][0] = sx1; texp[3][1] = sy2;
 	}
+
+	public static int genTexture(SDL_Surface *surface, uint gltex, out uint rw, out uint rh) {
+		rw = __pow2helper(surface.w); rh = __pow2helper(surface.h);
+		version (LittleEndian) { SDL_Surface *tsurface = SDL_CreateRGBSurface(SDL_SWSURFACE, rw, rh, 32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
+		} else { SDL_Surface *tsurface = SDL_CreateRGBSurface(SDL_SWSURFACE, rw, rh, 32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff); }
+		if (tsurface is null) throw(new Exception("Insufficient memory"));
+		SDL_Rect dest; with (dest) { x = y = 0; w = rw; h = rh; }
+		SDL_SetAlpha(surface, 0, 0);
+		SDL_BlitSurface(surface, null, tsurface, &dest);
+		glBindTexture(GL_TEXTURE_2D, gltex);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexImage2D(GL_TEXTURE_2D, 0, 4, rw, rh, 0, GL_RGBA, GL_UNSIGNED_BYTE, tsurface.pixels);
+		SDL_FreeSurface(tsurface);
+		return 0;
+	}
+
+/*
+	public static int genTexture(SDL_Surface *surface, uint gltex, out uint rw, out uint rh) {
+		rw = __pow2helper(surface.w); rh = __pow2helper(surface.h);
+		version (LittleEndian) { SDL_Surface *tsurface = SDL_CreateRGBSurface(SDL_SWSURFACE, rw, rh, 32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
+		} else { SDL_Surface *tsurface = SDL_CreateRGBSurface(SDL_SWSURFACE, rw, rh, 32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff); }
+		if (tsurface is null) throw(new Exception("Insufficient memory"));
+		SDL_Rect dest; with (dest) { x = y = 0; w = rw; h = rh; }
+		SDL_SetAlpha(surface, 0, 0);
+		SDL_BlitSurface(surface, null, tsurface, &dest);
+		glBindTexture(GL_TEXTURE_2D, gltex);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexImage2D(GL_TEXTURE_2D, 0, 4, rw, rh, 0, GL_RGBA, GL_UNSIGNED_BYTE, tsurface.pixels);
+		SDL_FreeSurface(tsurface);
+		return 0;
+	}
+
+	public static Image fromSurface(SDL_Surface *surface, char[] filename, bool frees = false) {
+		if (surface is null) throw(new Exception("Can't load file: '" ~ filename ~ "'"));
+		if (surface.w <   1 || surface.h <   1) throw(new Exception("Bitmap is too short"));
+
+		uint _w, _h;
+		Image image = new Image;
+		glGenTextures(1, &image.gltex);
+		genTexture(surface, image.gltex, _w, _h);
+
+		with (image) {
+			x  = 0;          y  = 0;
+			w  = surface.w;  h  = surface.h;
+			cx = surface.w >> 1; cy = surface.h >> 1;
+			tw = _w; th = _h;
+			fw = cast(float)surface.w / cast(float)tw;
+			fh = cast(float)surface.h / cast(float)th;
+			texp[0][0] = 0;  texp[0][1] = 0;
+			texp[1][0] = fw; texp[1][1] = 0;
+			texp[2][0] = fw; texp[2][1] = fh;
+			texp[3][0] = 0;  texp[3][1] = fh;
+		}
+
+		SDL_FreeSurface(surface);
+
+		if (frees) SDL_FreeSurface(surface);
+
+		return image;
+	}
+*/
 
 	public static Image fromSurface(SDL_Surface *surface, string filename, bool frees = false) {
 		if (surface is null) throw(new Exception("Can't load file: '" ~ filename ~ "'"));

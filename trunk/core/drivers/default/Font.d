@@ -25,7 +25,8 @@ module lunea.driver.Font;
 
 import lunea.driver.Util;
 
-import std.c.windows.windows, std.math, opengl, SDL_syswm;
+import lunea.driver.Image;
+import std.c.windows.windows, std.math, opengl, SDL_syswm, SDL_ttf;
 
 pragma(lib, "GDI32.LIB");
 pragma(lib, "OPENGL32.LIB");
@@ -82,7 +83,7 @@ extern(Windows) {
 	);
 }
 
-class Font {
+class FontWindows {
 	GLuint     base;
 	HDC        hDC = null;
 	ABC[]      abc;
@@ -165,7 +166,7 @@ class Font {
 	}
 
 	void draw(char[] text, real x, real y, Color c) {
-		glColor3f(c.r, c.g, c.b);
+		glColor4f(c.r, c.g, c.b, c.a);
 		glRasterPos2i(cast(int)x, cast(int)(y + this.height));
 
 		glPushAttrib(GL_LIST_BIT);
@@ -185,5 +186,136 @@ class Font {
 			if (n < text.length - 1) count += abc[c].abcC;
 		}
 		return count;
+	}
+}
+
+class Font {
+	FontWindows font;
+	FontTTF fontttf;
+
+	real height() {
+		return font ? font.height : fontttf.height;
+	}
+
+	this(char[] name, int size, bool bold = false, bool italic = false, bool underline = false, bool strikeout = false) {
+		if (std.string.find(name, '.') == -1) {
+			font = new FontWindows(name, size, bold, italic, underline, strikeout);
+		} else {
+			fontttf = new FontTTF(name, size);
+		}
+	}
+
+	~this() {
+		if (font) delete font;
+		if (fontttf) delete fontttf;
+	}
+
+	void draw(char[] text, real x, real y, Color c) {
+		if (font) font.draw(text, x, y, c);
+		else if (fontttf) fontttf.draw(text, x, y, c);
+	}
+
+	real width(char[] text) {
+		if (font) return font.width(text);
+		else if (fontttf) return fontttf.width(text);
+	}
+}
+
+class FontTTF {
+	real height;
+	TTF_Font *font;
+	GLuint *textures;
+	GLuint list_base;
+	int[] sizex;
+
+	static this() {
+		TTF_Init();
+	}
+
+	static ~this() {
+		TTF_Quit();
+	}
+
+	private static uint __pow2helper(uint n) {
+		uint r = 1; while (r < n) r <<= 1; return r;
+	}
+
+	void makeGlyph(char c) {
+		uint rw, rh;
+		SDL_Color color; color.r = color.g = color.b = 0xff;
+		SDL_Surface *glyph = TTF_RenderGlyph_Blended(font, c, color);
+		if (glyph is null) throw(new Exception("Can't make te glyph"));
+		Image.genTexture(glyph, textures[c], rw, rh);
+
+		int minx, maxx, miny, maxy, advance;
+		TTF_GlyphMetrics(font, c, &minx, &maxx, &miny, &maxy, &advance);
+		//writefln(cast(char)c, ", ", height," (", minx, ", ", maxx, ", ", miny, ", ", maxy, "), (", glyph.w, ", ", glyph.h, ") --> ", advance, ";  ", TTF_FontAscent(font), TTF_FontDescent(font));
+		sizex[c] = advance;
+		//widthsadv[c] = glyph.w;
+
+		glNewList(list_base + c, GL_COMPILE);
+			glPushMatrix();
+
+			glTranslatef(minx, -maxy + TTF_FontAscent(font) + TTF_FontDescent(font), 0);
+
+			float x = cast(float)glyph.w / cast(float)rw, y = cast(float)glyph.h / cast(float)rh;
+
+			glBindTexture(GL_TEXTURE_2D, textures[c]);
+			glBegin(GL_POLYGON);
+				glTexCoord2f(0, 0); glVertex2f(0, 0);
+				glTexCoord2f(x, 0); glVertex2f(glyph.w, 0);
+				glTexCoord2f(x, y); glVertex2f(glyph.w, glyph.h);
+				glTexCoord2f(0, y); glVertex2f(0, glyph.h);
+			glEnd();
+
+			glPopMatrix();
+			glTranslatef(advance, 0, 0);
+
+		glEndList();
+
+		SDL_FreeSurface(glyph);
+	}
+
+	this(char[] name, real height, int range = 250) {
+	//this(char[] name, int size, bool bold = false, bool italic = false, bool underline = false, bool strikeout = false) {
+		font = TTF_OpenFont(std.string.toStringz(name), cast(int)(this.height = height));
+		textures = new GLuint[range];
+		sizex = new int[range];
+		list_base = glGenLists(range);
+		glGenTextures(range, textures);
+		//TTF_SetFontStyle(font, TTF_STYLE_BOLD);
+		for (ubyte n = 32; n < range; n++) makeGlyph(n);
+		TTF_CloseFont(font);
+	}
+
+	real width(char[] text) {
+		real w = 0;
+		for (int n = 0; n < text.length; n++) w += sizex[text[n]];
+		return w;
+	}
+
+	void draw(char[] text, real x, real y, Color c) {
+		glColor4f(c.r, c.g, c.b, c.a);
+
+		glPushAttrib(GL_LIST_BIT | GL_CURRENT_BIT  | GL_ENABLE_BIT | GL_TRANSFORM_BIT);
+		glDisable(GL_LIGHTING);
+		glEnable(GL_TEXTURE_2D);
+		glDisable(GL_DEPTH_TEST);
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+		glListBase(list_base);
+		glPushMatrix();
+			glLoadIdentity();
+			glTranslatef(x, y, 0);
+			glCallLists(text.length, GL_UNSIGNED_BYTE, text.ptr);
+		glPopMatrix();
+	}
+
+	~this() {
+		//TTF_CloseFont(font);
+		glDeleteLists(list_base, 128);
+		glDeleteTextures(128, textures);
+		delete textures;
 	}
 }

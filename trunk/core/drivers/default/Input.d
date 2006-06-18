@@ -26,6 +26,7 @@ module lunea.driver.Input;
 import SDL, SDL_keyboard, SDL_mouse;
 
 import lunea.Lunea;
+import std.c.windows.windows;
 
 static class Input {
 	static void update() {
@@ -132,6 +133,8 @@ class CKeyboard {
 	}
 }
 
+extern(Windows) HCURSOR LoadCursorFromFileA(LPCTSTR lpFileName);
+
 class CMouse {
 	public int x, y, z;
 	public bit[5] b;
@@ -152,6 +155,13 @@ class CMouse {
 		this.b[0..5] = that.b[0..5];
 		this.pressed [0..5] = that.pressed [0..5];
 		this.released[0..5] = that.released[0..5];
+	}
+
+	void setCursor() {
+		SDL_Cursor *cursor = SDL_GetCursor();
+		cursor.wm_cursor.curs = cast(void *)LoadCursorA(null, IDC_ARROW);
+		//cursor.wm_cursor.curs = cast(void *)LoadCursorFromFileA("res\\icon.ico");
+		SDL_SetCursor(cursor);
 	}
 }
 

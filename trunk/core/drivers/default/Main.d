@@ -42,6 +42,7 @@ pragma(lib, "opengl32.lib");
 pragma(lib, "SDL.lib");
 pragma(lib, "SDL_image.lib");
 pragma(lib, "SDL_mixer.lib");
+pragma(lib, "SDL_ttf.lib");
 
 version (Windows) {
 	private import std.c.windows.windows;

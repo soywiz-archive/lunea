@@ -48,13 +48,6 @@ version (Windows) {
 
 		const int GCL_HICON = (-14);
 
-		//const int IDI_APPLICATION = 32512;
-		const int IDI_HAND        = 32513;
-		const int IDI_QUESTION    = 32514;
-		const int IDI_EXCLAMATION = 32515;
-		const int IDI_ASTERISK    = 32516;
-		const int IDI_WINLOGO     = 32517;
-
 		alias SetClassLongA SetClassLong;
 		alias LoadIconA LoadIcon;
 		alias FindResourceA FindResource;
@@ -75,6 +68,8 @@ class Screen {
 	static Rect[] clips;
 	static Rect   cclip;
 
+	version (Windows) static private HICON icon;
+
 	static this() {
 		if (!(SDL_WasInit(SDL_INIT_EVERYTHING) & SDL_INIT_VIDEO)) {
 			if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0) {
@@ -84,30 +79,27 @@ class Screen {
 	}
 
 	static ~this() {
-		DestroyIcon(icon);
+		version (Windows) DestroyIcon(icon);
 		SDL_QuitSubSystem(SDL_INIT_VIDEO);
 	}
 
-	static private HICON icon;
-
-
-	static void set(int width, int height, char[] title, bool fullscreen = false, SDL_Surface *surface = null) {
+	static void set(int width, int height, char[] title, bool fullscreen = false) {
 		Screen.width  = width;
 		Screen.height = height;
 		Screen.setted = true;
 
 		SDL_WM_SetCaption(std.string.toStringz(title), null);
 
-		if (surface !is null) SDL_WM_SetIcon(surface, null);
+		version (Windows) {
+			HWND hwnd;
+			HINSTANCE handle = GetModuleHandle(null);
+			icon = LoadIcon(handle, "icon");
+			SDL_SysWMinfo wminfo; SDL_GetWMInfo(&wminfo);
+			hwnd = cast(HANDLE)wminfo.window;
+			SetClassLong(hwnd, GCL_HICON, cast(LONG)icon);
+		}
 
-		HWND hwnd;
-		HINSTANCE handle = GetModuleHandle(null);
-		icon = LoadIcon(handle, "icon");
-		SDL_SysWMinfo wminfo; SDL_GetWMInfo(&wminfo);
-		hwnd = cast(HANDLE)wminfo.window;
-		SetClassLong(hwnd, GCL_HICON, cast(LONG)icon);
-
-		if ((screensf = SDL_SetVideoMode(width, height, 0, SDL_OPENGLBLIT | SDL_GL_DOUBLEBUFFER | SDL_DOUBLEBUF)) == null) {
+		if ((screensf = SDL_SetVideoMode(width, height, 0, SDL_OPENGLBLIT)) == null) {
 			throw new Exception("Unable to create SDL screen: " ~ SDL_GetErrorS());
 		}
 		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
@@ -150,6 +142,9 @@ class Screen {
 		glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
 
 		cclip = new Rect(0, 0, Screen.width, Screen.height);
+
+		//glDrawBuffer(GL_NONE);
+		//writefln(GL_AUX_BUFFERS);
 	}
 
 	static void clip(Rect rect) {

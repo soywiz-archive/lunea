@@ -342,6 +342,11 @@ abstract class Process : ProcessCounter {
 		return v + relative.__y + relative.relativey;
 	}
 
+	void setXY(real x, real y) {
+		this.x = x;
+		this.y = y;
+	}
+
 	// DRAW
 	void draw() {
 		if (sprite !is null) {

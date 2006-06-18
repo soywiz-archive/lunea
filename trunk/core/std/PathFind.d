@@ -170,9 +170,10 @@ class PathFind {
 
 	protected int heuristic(int x, int y) {
 		return (abs(dx - x) + abs(dy - y)) * 10;
+		//return cast(int)(hypot(cast(real)(dx - x), cast(real)(dy - y)) * 10);
 	}
 
-	public Point[] find(int _sx, int _sy, int _dx, int _dy, int flags = 0) {
+	/*public Point[] find(int _sx, int _sy, int _dx, int _dy, int flags = 0) {
 		Point[] retlist;
 		Node current;
 		bool found = false;
@@ -210,6 +211,56 @@ class PathFind {
 		while (current) {
 			retlist ~= new Point(current.x, current.y);
 			current = current.parent;
+		}
+
+		return retlist;
+	}*/
+
+	public Point[] find(int _dx, int _dy, int _sx, int _sy, int flags = 0) {
+		Point[] retlist;
+		Node current;
+		bool found = false;
+		int cx, cy;
+
+		for (int y = 0; y < height; y++) for (int x = 0; x < width; x++) nodes[y][x].reset();
+
+		this.dx = _sx; this.dy = _sy;
+		if (sx < 0 || sx >= width || sy < 0 || sy >= height) return null;
+
+		this.sx = _dx; this.sy = _dy;
+		if (dx < 0 || dx >= width || dy < 0 || dy >= height) return null;
+
+		if (map[sy][sx]) return null;
+		if (map[dy][dx]) return null;
+
+		opened.clean();
+		current = nodes[sy][sx];
+		opened.add(current);
+		current.status = openedid;
+
+		while (opened.has) {
+			current = opened.first;
+			opened.remove(current);
+
+			if (current.x == dx && current.y == dy) { found = true; break; }
+
+			next(current);
+
+			current.status = closedid;
+		}
+
+		if (!found) return null;
+
+		while (current) {
+			retlist ~= new Point(current.x, current.y);
+			current = current.parent;
+		}
+
+		int rll2 = retlist.length / 2;
+		for (int n = 0, m = retlist.length - 1; n < rll2; n++, m--) {
+			Point temp = retlist[n];
+			retlist[n] = retlist[m];
+			retlist[m] = temp;
 		}
 
 		return retlist;
