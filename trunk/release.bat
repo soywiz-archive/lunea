@@ -1,0 +1,1 @@
+@install\7z a -r0 -y -x!bin\dm -x!bin\dmd -x!*.svn -x!editor -x!install\*.zip lunea.7z
