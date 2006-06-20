@@ -235,6 +235,8 @@ class Music {
 	}
 }
 
+Audio audio;
+
 class Audio {
 	Channel[16] channels;
 	Channel     freeChannel;
@@ -247,6 +249,7 @@ class Audio {
 				throw new Exception("Unable to initialize SDL: " ~ std.string.toString(SDL_GetError()));
 			}
 		}
+		audio = new Audio;
 	}
 
 	static ~this() {
