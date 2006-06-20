@@ -221,10 +221,10 @@ abstract class Process : ProcessCounter {
 	public    char[] toString() { return "(" ~ std.string.toString(id) ~ ", " ~ type ~ ")"; }
 
 	void _draw() {
-		// TODO: we must execute draw after or before?
+		drawBegin();
+
 		draw();
 
-		drawBegin();
 		resortZ();
 		for (int n = 0; n < zList.length; n++) {
 			Process p = zList[n];

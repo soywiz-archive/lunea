@@ -30,7 +30,7 @@ process Text {
 	action draw {
 		if (font is null) return;
 
-		real rx = x, ry = y;
+		real rx = __x, ry = __y;
 
 		switch (halign) {
 			case Align.center: rx -= font.width(text) / 2; break;
@@ -43,6 +43,8 @@ process Text {
 			case Align.bottom: ry -= font.height; break;
 			default: break;
 		}
+
+		//writefln(x, ", ", __y);
 
 		if (shadow > 0) {
 			Color scolor = new Color(0, 0, 0, 1 / cast(real)shadow);

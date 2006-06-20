@@ -117,6 +117,10 @@ class CKeyboard {
 		SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
 	}
 
+	void setInterval(int delay, int interval) {
+		SDL_EnableKeyRepeat(delay, interval);
+	}
+
 	bool opIndex(int index) {
 		return keys[index];
 	}

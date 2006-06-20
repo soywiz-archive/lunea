@@ -26,6 +26,7 @@ module lunea.driver.Font;
 import lunea.driver.Util;
 
 import lunea.driver.Image;
+import lunea.Resource;
 import std.c.windows.windows, std.math, opengl, SDL_syswm, SDL_ttf;
 
 pragma(lib, "GDI32.LIB");
@@ -194,7 +195,13 @@ class Font {
 	FontTTF fontttf;
 
 	real height() {
+		if (font is null && fontttf is null) return 0;
 		return font ? font.height : fontttf.height;
+	}
+
+	private this() {
+		fontttf = null;
+		font = null;
 	}
 
 	this(char[] name, int size, bool bold = false, bool italic = false, bool underline = false, bool strikeout = false) {
@@ -218,6 +225,12 @@ class Font {
 	real width(char[] text) {
 		if (font) return font.width(text);
 		else if (fontttf) return fontttf.width(text);
+	}
+
+	static Font fromResource(char[] resource, real height, int range = 250) {
+		Font font = new Font;
+		font.fontttf = FontTTF.fromResource(resource, height, range);
+		return font;
 	}
 }
 
@@ -288,6 +301,18 @@ class FontTTF {
 		TTF_CloseFont(font);
 	}
 
+	this(TTF_Font *font, real height, int range = 250) {
+		this.height = height;
+		this.font = font;
+		textures = new GLuint[range];
+		sizex = new int[range];
+		list_base = glGenLists(range);
+		glGenTextures(range, textures);
+		//TTF_SetFontStyle(font, TTF_STYLE_BOLD);
+		for (ubyte n = 32; n < range; n++) makeGlyph(n);
+		TTF_CloseFont(font);
+	}
+
 	real width(char[] text) {
 		real w = 0;
 		for (int n = 0; n < text.length; n++) w += sizex[text[n]];
@@ -317,5 +342,22 @@ class FontTTF {
 		glDeleteLists(list_base, 128);
 		glDeleteTextures(128, textures);
 		delete textures;
+	}
+
+	public static FontTTF fromResource(char[] filename, real height, int range = 250) {
+		if (!Resources.have(filename)) throw(new Exception("Can't load resource: " ~ filename ~ "'"));
+
+		return new FontTTF(
+			TTF_OpenFontRW(
+				SDL_RWFromMem(
+					Resources.get(filename),
+					Resources.size(filename)
+				),
+				-1,
+				cast(int)height
+			),
+			height,
+			range
+		);
 	}
 }

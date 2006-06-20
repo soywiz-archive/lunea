@@ -28,6 +28,7 @@ private import opengl, SDL, SDL_image;
 
 private import std.math;
 private import lunea.Resource;
+private import lunea.driver.Screen;
 
 /*
 
@@ -129,6 +130,19 @@ class Image {
 
 		glBindTexture(GL_TEXTURE_2D, 0);
 		glDisable(GL_BLEND);
+	}
+
+	public void drawTiled(real x, real y, real width, real height, real alpha = 1) {
+		if (width < 0 || height < 0) return;
+
+		Screen.pushClip(new Rect(x, y, width, height));
+			int px2 = cast(int)ceil(width / w), py2 = cast(int)ceil(height / h);
+			for (int py = 0; py < py2; py++) {
+				for (int px = 0; px < px2; px++) {
+					draw(x + px * w, y + py * h, alpha);
+				}
+			}
+		Screen.popClip();
 	}
 
 	private static uint __pow2helper(uint n) {

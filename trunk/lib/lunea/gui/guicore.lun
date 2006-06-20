@@ -4,9 +4,13 @@ Process guiover;
 Process guifocused;
 Process guifocusedc;
 
-void GuiInit() {
+void GuiInit(Font font = null) {
 	gui = new Gui(1000);
-	guifont = new Font("Arial", 14, false, true);
+	if (font !is null) {
+		guifont = font;
+	} else {
+		guifont = new Font("Arial", 14, false, true);
+	}
 }
 
 process Gui {

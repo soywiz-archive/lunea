@@ -103,10 +103,13 @@ class Screen {
 			throw new Exception("Unable to create SDL screen: " ~ SDL_GetErrorS());
 		}
 		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-
 		initViewport();
 
-		debugFont = new Font("Arial", 14);
+		SDL_Cursor *cursor = SDL_GetCursor();
+		cursor.wm_cursor.curs = cast(void *)LoadCursorA(null, IDC_ARROW);
+		SDL_SetCursor(cursor);
+
+		//debugFont = new Font("Arial", 14);
 	}
 
 	static void initViewport() {
