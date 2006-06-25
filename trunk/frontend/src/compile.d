@@ -203,9 +203,12 @@ bool compileProgram(LuneaParser parser, string[] resources) {
 
 	parameters ~= " ~temp.res";
 	parameters ~= " -of\"" ~ fileName ~ "\"";
-	parameters ~= " -release";
 	parameters ~= " -O";
-	parameters ~= " -d";
+	parameters ~= " -inline";
+	parameters ~= " -release";
+	//parameters ~= " -d";
+
+	// -O -inline -release
 	//parameters ~= " -w";
 
 	string link = "";

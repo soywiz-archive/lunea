@@ -56,8 +56,8 @@ process Window {
 
 	private static bit rintersect(real a1, real a2, real b1, real b2) {
 		real temp;
-		if (a1 > a2) { real temp = a2; a2 = a1; a1 = temp; }
-		if (b1 > b2) { real temp = b2; b2 = b1; b1 = temp; }
+		if (a1 > a2) { temp = a2; a2 = a1; a1 = temp; }
+		if (b1 > b2) { temp = b2; b2 = b1; b1 = temp; }
 
 		return (min(a2, b2) + 1) >= (max(a1, b1) - 1);
 	}

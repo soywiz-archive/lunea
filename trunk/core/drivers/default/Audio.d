@@ -128,6 +128,7 @@ class Channel {
 
 	bool playing(bit set) {
 		set ? resume() : pause();
+		return set;
 	}
 }
 

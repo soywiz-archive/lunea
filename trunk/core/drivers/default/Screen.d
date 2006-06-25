@@ -99,10 +99,10 @@ class Screen {
 			SetClassLong(hwnd, GCL_HICON, cast(LONG)icon);
 		}
 
-		if ((screensf = SDL_SetVideoMode(width, height, 0, SDL_OPENGLBLIT)) == null) {
+		if ((screensf = SDL_SetVideoMode(width, height, 0, SDL_OPENGL | SDL_DOUBLEBUF)) == null) {
 			throw new Exception("Unable to create SDL screen: " ~ SDL_GetErrorS());
 		}
-		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+		//SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 		initViewport();
 
 		SDL_Cursor *cursor = SDL_GetCursor();

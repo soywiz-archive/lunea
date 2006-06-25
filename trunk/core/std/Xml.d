@@ -137,8 +137,8 @@ class Xml {
 		this.children[length..this.children.length] = xmls[0..incv];
 
 		if (after.name && after.name.length) {
-			int length = this.childrenGroups[after.name].length;
-			int incv   = xmls.length;
+			length = this.childrenGroups[after.name].length;
+			incv   = xmls.length;
 
 			this.childrenGroups[after.name].length = length + incv;
 
@@ -166,7 +166,7 @@ class Xml {
 		}
 
 		if (that.name && that.name.length) {
-			int length = this.childrenGroups[that.name].length;
+			length = this.childrenGroups[that.name].length;
 			for (int n = 0; n < length; n++) {
 				if (that !is this.childrenGroups[that.name][n]) continue;
 				for (n++; n < length; n++) this.childrenGroups[that.name][n - 1] = this.childrenGroups[that.name][n];
@@ -201,10 +201,10 @@ class Xml {
 
 						switch (c = read) {
 							case '/': { // Must check validity
-								char c;
+								char c2;
 								char[] tagname;
-								while (!eof && (c = read) != '>') {
-									tagname ~= c;
+								while (!eof && (c2 = read) != '>') {
+									tagname ~= c2;
 								}
 								tagname = std.string.strip(tagname);
 								if (current is null) return;
@@ -233,23 +233,23 @@ class Xml {
 								char[][char[]] tagattributes;
 								unread();
 								tagname = "";
-								char c;
+								char c2;
 								while (!eof) {
-									c = read;
-									if (c == '/' || c == '>' || white(c)) break;
-									tagname ~= c;
+									c2 = read;
+									if (c2 == '/' || c2 == '>' || white(c2)) break;
+									tagname ~= c2;
 								}
 
 								bool empty = false;
 
 								while (!eof) {
-									if (c == '/') {
+									if (c2 == '/') {
 										empty = true;
-										c = read;
+										c2 = read;
 										continue;
 									}
 
-									if (c == '>') {
+									if (c2 == '>') {
 										break;
 									}
 
@@ -260,33 +260,33 @@ class Xml {
 
 									atrname = "";
 									while (!eof) {
-										c = read;
-										if (c == '/' || c == '>' || white(c)) break;
-										if (c == '=') {
+										c2 = read;
+										if (c2 == '/' || c2 == '>' || white(c2)) break;
+										if (c2 == '=') {
 											trywhite();
 											atrvalue = "";
 											if (tryread('"')) {
 												while (!eof) {
-													c = read;
-													if (c == '"') break;
-													atrvalue ~= c;
+													c2 = read;
+													if (c2 == '"') break;
+													atrvalue ~= c2;
 												}
 											} else if (tryread('\'')) {
 												while (!eof) {
-													c = read;
+													c2 = read;
 													if (c == '\'') break;
-													atrvalue ~= c;
+													atrvalue ~= c2;
 												}
 											} else {
 												while (!eof) {
-													c = read;
-													if (white(c) || c == '/' || c == '>') break;
-													atrvalue ~= c;
+													c2 = read;
+													if (white(c2) || c2 == '/' || c2 == '>') break;
+													atrvalue ~= c2;
 												}
 											}
 											break;
 										}
-										atrname ~= c;
+										atrname ~= c2;
 									}
 
 									if (atrname.length) tagattributes[std.string.tolower(std.string.strip(atrname))] = atrvalue;

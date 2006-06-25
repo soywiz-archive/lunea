@@ -25,7 +25,7 @@ module lunea.Process;
 
 private import lunea.ProcessThread;
 private import lunea.driver.Main;
-private import std.math, std.stdio;
+private import std.math, std.stdio, std.gc;
 private import lunea.Lunea;
 
 enum Flags {
@@ -508,16 +508,19 @@ class ProcessManager : Process {
 		mprocess  = mprc;
 		cprocess  = this;
 
+		//std.gc.disable();
 		while (length && luneaRunning) {
 			try {
 				LuneaDriver.onBeforeExecute();
 
+				//std.gc.disable();
 				try {
 					_execute();
 					_draw();
 				} catch (Exception e) {
 					writefln("Exception: " ~ e.toString);
 				}
+				//std.gc.enable();
 
 				LuneaDriver.onAfterExecute();
 			} catch (Exception e) {
