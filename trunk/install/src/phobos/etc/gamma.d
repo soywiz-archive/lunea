@@ -361,7 +361,7 @@ real lgamma(real x)
     if( x < -34.0L ) {
         q = -x;
         w = lgamma(q);
-        real p = floor(q);
+        p = floor(q);
         if ( p == q ) return real.infinity;
         int intpart = cast(int)(p);
         real sgngam = 1;
