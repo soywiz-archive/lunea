@@ -1,0 +1,5 @@
+program {
+    action main {
+        while (true) frame();
+    }
+}
