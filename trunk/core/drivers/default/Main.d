@@ -32,6 +32,7 @@ public import
 	lunea.driver.Image,
 	lunea.driver.Audio,
 	lunea.driver.Font,
+	lunea.driver.Util,
 	lunea.driver.Driver
 ;
 

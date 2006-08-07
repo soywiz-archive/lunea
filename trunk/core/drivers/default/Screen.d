@@ -28,7 +28,7 @@ import
 	lunea.driver.Font
 ;
 
-import SDL, opengl, std.c.windows.windows, std.string;
+import SDL, SDL_syswm, SDL_mouse, opengl, std.c.windows.windows, std.string;
 
 private import std.stdio;
 

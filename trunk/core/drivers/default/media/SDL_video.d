@@ -22,9 +22,9 @@
 
 /* Header file for access to the SDL raw framebuffer window */
 
-import SDL_types;
-import SDL_mutex;
-import SDL_rwops;
+public import SDL_types;
+public import SDL_mutex;
+public import SDL_rwops;
 
 extern(C):
 

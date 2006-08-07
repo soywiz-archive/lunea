@@ -27,7 +27,7 @@ import lunea.driver.Util;
 
 import lunea.driver.Image;
 import lunea.Resource;
-import std.c.windows.windows, std.math, opengl, SDL_syswm, SDL_ttf;
+import std.c.windows.windows, std.math, opengl, SDL_video, SDL_syswm, SDL_ttf;
 
 pragma(lib, "GDI32.LIB");
 pragma(lib, "OPENGL32.LIB");

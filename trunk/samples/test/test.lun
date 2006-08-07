@@ -1,5 +1,10 @@
+config {
+    temp: false;
+    output: "test.exe";
+}
+
 program {
     action main {
-        while (true) frame();
+        while (!key[_esc]) frame();
     }
 }

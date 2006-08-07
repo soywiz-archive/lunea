@@ -29,6 +29,7 @@ private import opengl, SDL, SDL_image;
 private import std.math;
 private import lunea.Resource;
 private import lunea.driver.Screen;
+private import lunea.driver.Util;
 
 /*
 

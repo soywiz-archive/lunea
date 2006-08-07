@@ -23,7 +23,7 @@
 
 module lunea.driver.Input;
 
-import SDL, SDL_keyboard, SDL_mouse;
+public import SDL, SDL_keyboard, SDL_mouse;
 
 import lunea.Lunea;
 import std.c.windows.windows;

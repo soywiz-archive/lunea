@@ -23,7 +23,7 @@
 
 module lunea.driver.Util;
 
-import lunea.std.Math, lunea.std.String;
+public import lunea.std.Math, lunea.std.String;
 
 private import std.stdio;
 

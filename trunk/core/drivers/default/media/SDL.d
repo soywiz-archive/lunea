@@ -22,18 +22,18 @@
 
 //public pragma(lib, "sdl.lib");
 
-import SDL_types;
-import SDL_getenv;
-import SDL_error;
-import SDL_rwops;
-import SDL_timer;
-import SDL_audio;
-import SDL_cdrom;
-import SDL_joystick;
-import SDL_events;
-import SDL_video;
-import SDL_byteorder;
-import SDL_Version;
+public import SDL_types;
+public import SDL_getenv;
+public import SDL_error;
+public import SDL_rwops;
+public import SDL_timer;
+public import SDL_audio;
+public import SDL_cdrom;
+public import SDL_joystick;
+public import SDL_events;
+public import SDL_video;
+public import SDL_byteorder;
+public import SDL_Version;
 
 extern(C):
 

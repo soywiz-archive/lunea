@@ -331,7 +331,7 @@ class LuneaParser {
 		;
 
 		//foreach (string name, bool b; imports) prep ~= "public import " ~ name ~ ";";
-		if (imports.length) prep ~= "import " ~ join(imports.keys, ", ") ~ ";\n\n";
+		if (imports.length) prep ~= "public import " ~ join(imports.keys, ", ") ~ ";\n\n";
 
 		prep ~=
 			"#""line 0 \"main\"\n"
