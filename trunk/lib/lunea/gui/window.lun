@@ -326,9 +326,9 @@ process Window {
 		}
 		*/
 		if (minimized) {
-			Screen.pushClip(new Rect(x, y, width, 0), true);
+			Screen.pushClip(new Rect(x, y, width + 1, 20 + 1), true);
 		} else {
-			Screen.pushClip(new Rect(x, y, width, height), true);
+			Screen.pushClip(new Rect(x, y, width + 1, height + 1), true);
 		}
 	}
 
