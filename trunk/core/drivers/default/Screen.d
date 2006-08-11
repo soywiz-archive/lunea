@@ -23,12 +23,12 @@
 
 module lunea.driver.Screen;
 
-import
+public import
 	lunea.driver.Util,
 	lunea.driver.Font
 ;
 
-import SDL, SDL_syswm, SDL_mouse, opengl, std.c.windows.windows, std.string;
+public import SDL, SDL_syswm, SDL_mouse, opengl, std.c.windows.windows, std.string;
 
 private import std.stdio;
 
