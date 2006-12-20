@@ -15,6 +15,10 @@ process Text {
 	Align valign;
 	int shadow, border;
 
+	real width() {
+		return font.width(text);
+	}
+
 	this(string text = "", real x = 0, real y = 0, Align halign = Align.left, Align valign = Align.top, Color color = Color.white, Font font = null) {
 		if (font is null) font = debugFont;
 		this.font  = font;
