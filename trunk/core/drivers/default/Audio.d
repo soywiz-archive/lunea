@@ -142,7 +142,7 @@ class Music {
 
 	~this() {
 		if (music !is null) Mix_FreeMusic(music);
-		if (tempfile) unlink(tempfile);
+		if (tempfile) unlink(tempfile.ptr);
 	}
 
 	static Music fromFile(string filename) {
@@ -183,7 +183,7 @@ class Music {
 			if (music.music is null) throw(new Exception("Can't Load Music: '" ~ std.string.toString(Mix_GetError()) ~ "'"));
 		}
 
-		unlink(music.tempfile);
+		unlink(music.tempfile.ptr);
 
 		//free(tname);
 

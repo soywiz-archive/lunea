@@ -75,7 +75,7 @@ static this() {
 	version(Windows) {
 		// Obtain the path of program and sets the program variable
 		char[MAX_PATH] pathbuf;
-		int length = GetModuleFileNameA(null, pathbuf, pathbuf.length);
+		int length = GetModuleFileNameA(null, pathbuf.ptr, pathbuf.length);
 		program = pathbuf[0 .. length];
 	} else {
 		throw(new Exception("Linux version not implemented yet"));

@@ -58,7 +58,7 @@ class Squirrel {
 		SQInteger top = sq_gettop(vm);
 		sq_pushroottable(vm);
 
-		sq_pushstring(vm, func, -1);
+		sq_pushstring(vm, func.ptr, -1);
 		if (SQ_FAILED(sq_get(vm, -2))) {
 			sq_settop(vm, top);
 			throw(new Exception(std.string.format("Function %s doesn't exists", func)));
@@ -177,15 +177,15 @@ class Squirrel {
 						switch (a.classinfo.name[10]) {
 							case 'a':
 								char[] s =  va_arg!(char[])(arglist);
-								sq_pushstring(vm, s, s.length);
+								sq_pushstring(vm, s.ptr, s.length);
 							break;
 							case 'u':
 								wchar[] s = va_arg!(wchar[])(arglist);
-								sq_pushstring(vm, cast(char *)s, s.length);
+								sq_pushstring(vm, cast(char *)(s.ptr), s.length);
 							break;
 							case 'w':
 								dchar[] s = va_arg!(dchar[])(arglist);
-								sq_pushstring(vm, cast(char *)s, s.length);
+								sq_pushstring(vm, cast(char *)(s.ptr), s.length);
 							break;
 							default:
 								void[] va = va_arg!(void[])(arglist);

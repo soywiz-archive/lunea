@@ -28,6 +28,7 @@ import lunea.driver.Util;
 import lunea.driver.Image;
 import lunea.Resource;
 import std.c.windows.windows, std.math, opengl, SDL_video, SDL_syswm, SDL_ttf;
+import std.c.stdlib;
 
 pragma(lib, "GDI32.LIB");
 pragma(lib, "OPENGL32.LIB");
@@ -122,7 +123,7 @@ class FontWindows {
 			ANTIALIASED_QUALITY,
 			//CLEARTYPE_QUALITY,
 			FF_DONTCARE | DEFAULT_PITCH,
-			std.string.toString(name)
+			name.ptr
 		);
 
 		oldfont = cast(HFONT)SelectObject(hDC, font);
@@ -292,8 +293,11 @@ class FontTTF {
 	this(char[] name, real height, int range = 250) {
 	//this(char[] name, int size, bool bold = false, bool italic = false, bool underline = false, bool strikeout = false) {
 		font = TTF_OpenFont(std.string.toStringz(name), cast(int)(this.height = height));
-		textures = new GLuint[range];
+		textures = cast(GLuint *)malloc(GLuint.sizeof * range);
+		//textures = (new GLuint[range]).ptr;
 		sizex = new int[range];
+		//textures = (new GLuint[range]).ptr;
+		//sizex = (new int[range]).ptr;
 		list_base = glGenLists(range);
 		glGenTextures(range, textures);
 		//TTF_SetFontStyle(font, TTF_STYLE_BOLD);
@@ -304,7 +308,9 @@ class FontTTF {
 	this(TTF_Font *font, real height, int range = 250) {
 		this.height = height;
 		this.font = font;
-		textures = new GLuint[range];
+		//textures = (new GLuint[range]).ptr;
+		textures = cast(GLuint *)malloc(GLuint.sizeof * range);
+		//textures = (new GLuint[range]).ptr;
 		sizex = new int[range];
 		list_base = glGenLists(range);
 		glGenTextures(range, textures);
