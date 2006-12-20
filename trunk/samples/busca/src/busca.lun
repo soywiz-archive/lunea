@@ -88,6 +88,8 @@ process Board {
 	d_time tstop;
 	Text timeText;
 
+	int lastx, lasty;
+
 	// Devuelve el tiempo actual (en milisegundos)
 	d_time time() { return getUTCtime(); }
 
@@ -248,11 +250,35 @@ process Board {
 	}
 
 	void show_board_lose() {
-		for (int y = 0; y < height; y++) {
-			for (int x = 0; x < width; x++) {
-				mask[y][x] = true;
+		// Subfunción de show_board_lose que se encarga de
+		// desenmascarar una posición despues de comprobar
+		// si es correcta
+		bool unmask(int x, int y) {
+			if (!in_bounds(x, y)) return false;
+			mask[y][x] = true;
+			return true;
+		}
+
+		alias lastx x;
+		alias lasty y;
+
+		// Propagación con forma de diamante
+		int dist = 0;
+		while (true) {
+			bool drawing = false;
+
+			for (int n = 0; n <= dist; n++) {
+				if (unmask(x - n + dist, y - n)) drawing = true;
+				if (unmask(x + n - dist, y - n)) drawing = true;
+				if (unmask(x - n + dist, y + n)) drawing = true;
+				if (unmask(x + n - dist, y + n)) drawing = true;
 			}
+
+			if (!drawing) break;
+
+			dist++;
 			frame();
+			//if (dist >= max(width * 2, height * 2)) break;
 		}
 	}
 
@@ -272,6 +298,9 @@ process Board {
 
 	bool check(int px, int py) {
 		if (!in_bounds(px, py)) return false;
+
+		// Guardamos la última posición en la que hicimos click
+		lastx = px; lasty = py;
 
 		// Estamos ante una mina
 		if (board[py][px] == 10) return true;
