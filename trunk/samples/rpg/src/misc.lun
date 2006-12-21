@@ -1,0 +1,88 @@
+process Palette {
+	Window window;
+	TileSet tileset;
+	int rollp = 0;
+	int selected = 0;
+	int s = 0;
+
+	this(TileSet tileset) {
+		this.tileset = tileset;
+		with (window = new Window) {
+			title = "Paleta";
+			x = 0;
+			y = 0;
+			window.w = window.minw = 75;
+			window.h = 400;
+			this.inner = window;
+		}
+	}
+
+	action main {
+		while (true) {
+			//printf("%d\n", Mouse.b[2]);
+			if (Mouse.b[3]) s -= (key[_shift] * 3 + 1);
+			if (Mouse.b[4]) s += (key[_shift] * 3 + 1);
+			if (key[_kp_minus]) s--;
+			if (key[_kp_plus]) s++;
+			if (Mouse.pressed[0]) {
+				Image ci = tileset.tiles[0];
+				if (!ci) continue;
+
+				int px = cast(int)(__x + window.width / 2 - ci.w / 2);
+				int py = cast(int)(__y - rollp + 2);
+				//n * (ci.h + 2)
+				if (Mouse.x >= px && Mouse.x <= px + ci.w) {
+					//printf("%d, %d\n", cast(int)Mouse.x, cast(int)Mouse.y);
+
+					if (Mouse.y >= py && Mouse.y <= py + (ci.h + 2) * 10) {
+						int pn = (Mouse.y - py) / (ci.h + 2);
+						//printf("%d\n", pn);
+						selected = pn + s;
+					}
+				}
+				//printf("lol");
+			}
+			frame();
+		}
+	}
+
+	action draw {
+		for (int n = 0; n < 10; n++) {
+			int px, py;
+			if (n + s < 0) continue;
+			if (n + s >= tileset.tiles.length) break;
+			Image ci = tileset.tiles[n + s];
+			if (!ci) continue;
+			px = cast(int)(__x + window.width / 2 - ci.w / 2);
+			py = cast(int)(__y + n * (tileset.tiles[0].h + 2) - rollp + 2);
+			if (selected == n + s) {
+				Screen.drawBox(px - 1, py - 1, px + ci.w, py + ci.h, Color.red);
+			}
+			ci.draw(px, py);
+		}
+	}
+}
+
+process UserMouse {
+	this() {
+		Mouse.hide();
+		sprite = Sprite.fromFile("cursor.xml");
+	}
+
+	~this() {
+		Mouse.show();
+	}
+
+	action main {
+		bit pressed = false;
+		real sx, sy;
+
+		while (true) {
+			z = 100000;
+			x = Mouse.x;
+			y = Mouse.y;
+
+			frame();
+		}
+	}
+}
