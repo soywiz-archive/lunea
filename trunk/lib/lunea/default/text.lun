@@ -1,10 +1,10 @@
 process Text {
 	enum Align {
-		left = 0,
-		top = 0,
+		left   = 0,
+		top    = 0,
 		center = 1,
 		middle = 1,
-		right = 2,
+		right  = 2,
 		bottom = 2
 	}
 
@@ -14,8 +14,9 @@ process Text {
 	Align halign;
 	Align valign;
 	int shadow, border;
-
+	
 	real width() {
+		if (!font) return 0;
 		return font.width(text);
 	}
 
@@ -47,8 +48,6 @@ process Text {
 			case Align.bottom: ry -= font.height; break;
 			default: break;
 		}
-
-		//writefln(x, ", ", __y);
 
 		if (shadow > 0) {
 			Color scolor = new Color(0, 0, 0, 1 / cast(real)shadow);
