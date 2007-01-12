@@ -1,0 +1,56 @@
+﻿process RandomLight {
+	int w2, h2;
+	real sx, sy, inca, incs, excx, excy;
+
+	this() {
+		this.graph = ilight;
+		w2 = Screen.width / 2;
+		h2 = Screen.height / 2;
+		collisionType = Collision.inner;
+	}
+
+	action main {
+		sx    = random.getReal(-w2, w2);
+		sy    = random.getReal(-h2, h2);
+		inca  = random.getReal(0.0001, 0.03);
+		incs  = random.getReal(0.5, 2);
+		excx  = random.getReal(0.7, 1.3);
+		excy  = random.getReal(0.7, 1.3);
+		alpha = random.getReal(0.4, 0.7);
+		alpha = 0.1;
+
+		while (true) {
+			angle += inca;
+			x = w2 - cos(angle) * w2 * excx + sx;
+			y = h2 - sin(angle) * h2 * excy + sy;
+			size = 1 + (cos(angle) / 6) * incs;
+
+			// Comprueba si una esfera de luz ha chocado con otra
+			// El sistema de colisión por defecto es inner circle
+			if (this.collision(this.type)) {
+				if (alpha <= 0.8) alpha += 0.01;
+			} else {
+				if (alpha >= 0.1) alpha -= 0.01;
+			}
+
+			frame();
+		}
+	}
+
+	action draw {
+		graph.draw(__x, __y, alpha, 0, size, alpha, alpha, alpha, GL_ONE, GL_ONE);
+	}
+}
+
+/*
+
+// Si quisieramos definir un tipo de colisión personalizado
+// entre dos objetos crearíamos un codigo similar a este:
+// Si se devuelve true, quiere decir que los objetos colisionan
+// si se devuelve false es que no colisionan.
+
+collision(RandomLight l1, RandomLight l2) {
+	if (l1.graph is null || l2.graph is null) return false;
+	return (l1.x == l2.x && l1.y == l2.y) return true;
+}
+*/

@@ -37,11 +37,12 @@ void showHeader() {
 	char[] corev = "unknown", corevp = appPath ~ "/../core/VERSION";
 	char[] driversp = appPath ~ "/../core/drivers";
 	char[][] drivers;
-	if (exists(corevp)) corev = cast(char[])read(corevp);
 
+	if (exists(corevp)) corev = cast(char[])read(corevp);
 
 	echoln("Lunea Preprocessor " ~ feversion ~ " (using Digital Mars compiler)");
 	echoln("Copyright (c) " ~ fedate ~ " by Carlos Ballesteros Velasco");
+
 	if (exists(driversp)) {
 		foreach (char[] file; std.file.listdir(driversp)) {
 			char[] cfile, cver;

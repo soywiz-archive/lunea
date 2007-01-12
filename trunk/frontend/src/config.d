@@ -23,7 +23,7 @@
 
 module lunea.frontend.config;
 
-import std.c.windows.windows;
+import std.c.windows.windows, std.string;
 
 const char[] feversion = "0.9c";
 //const char[] fedate    = __DATE__;
@@ -34,8 +34,9 @@ const char[] curPath;
 
 static this() {
 	// set appPath
-	char *pathbuf = new char[MAX_PATH];
-	int len = GetModuleFileNameA(null, pathbuf, MAX_PATH); appPath = pathbuf[0 .. len];
+	char[MAX_PATH] pathbuf;
+	appPath.length = GetModuleFileNameA(null, pathbuf.ptr, MAX_PATH);
+	appPath[0..appPath.length] = pathbuf[0..appPath.length];
 	appPath = std.path.getDirName(appPath);
 	// set curPath
 	curPath = std.file.getcwd();

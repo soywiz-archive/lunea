@@ -81,6 +81,12 @@ class LuneaParser {
 	}
 
 	public void parseFile(string filename, string code) {
+		if (code.length >= 3) {
+			if (code[0..3] == "\xEF\xBB\xBF") {
+				code = code[3..code.length];
+			}
+		}
+
 		int opn0 = 0, opn1 = 0, opn2 = 0;
 		auto lt = new LTokenizer(code);
 		LToken token, token2, token3;

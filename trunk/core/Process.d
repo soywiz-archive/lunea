@@ -250,7 +250,7 @@ abstract class Process : ProcessCounter {
 		for (int n = 0; n < eList.length; n++) {
 			Process p = eList[n];
 
-			if (!p.flags.execute) continue;
+			if (!p || !p.flags.execute) continue;
 
 			if (!p.flags.alive) {
 				try { delete p; } catch (Exception e) { }
@@ -456,6 +456,8 @@ abstract class Process : ProcessCounter {
 
 	// FIX;TODO
 	bool pcollision(Process that) {
+		if (this is that) return false;
+
 		if (interactions.hasInteraction("collision", this, that)) {
 			return cast(bool)interactions.interact("collision", this, that);
 		}

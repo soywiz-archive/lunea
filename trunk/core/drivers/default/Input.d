@@ -274,4 +274,8 @@ enum {
 	_kp_plus = SDLK_KP_PLUS,
 	_kp_enter = SDLK_KP_ENTER,
 	_kp_equals = SDLK_KP_EQUALS,
+
+	_minus = SDLK_KP_MINUS,
+	_plus = SDLK_KP_PLUS,
+
 }
