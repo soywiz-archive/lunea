@@ -25,6 +25,8 @@ int main() {
 
 	//printf("%d, %d\n", insignia->cx, insignia->cy);
 
+	printf("Memoria: %f MB\n", (float)((float)textureMemory / (float)1024 / (float)1024));
+
 	while (!key[SDLK_ESCAPE]) {
 		VideoModeEnable2D();
 

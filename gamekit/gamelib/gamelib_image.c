@@ -2,6 +2,8 @@
 #include "gamelib_internal.h"
 #include <GL/glext.h>
 
+int textureMemory = 0;
+
 //
 // http://www.opengl.org/registry/specs/EXT/framebuffer_object.txt
 // http://www.codesampler.com/oglsrc/oglsrc_14.htm
@@ -182,6 +184,8 @@ void __ImageUpdateTexPoints(Image i) {
 	float fx1, fx2, fy1, fy2;
 
 	//printf("(%f,%f)-(%f,%f)", (float)i->x, (float)i->y, (float)i->w, (float)i->h);
+
+	textureMemory += i->rw * i->rh * 4;
 
 	fx1 = (float)i->x / (float)i->rw;
 	fy1 = (float)i->y / (float)i->rh;

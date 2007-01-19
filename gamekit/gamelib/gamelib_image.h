@@ -1,6 +1,8 @@
 typedef struct _Image _Image;
 typedef struct _Image *Image;
 
+extern int textureMemory;
+
 struct _Image {
 	Image father;
 
