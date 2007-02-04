@@ -42,7 +42,7 @@ program {
 		ilight   = Image.fromResource("light.png");
 
 		// Obtenemos la imagen de fondo
-		graph    = Image.fromResource("bg.jpg").setCXCY();
+		graph    = Image.fromResource("bg.jpg").setCXCY(0, 0);
 
 		// Obtenemos los sonidos
 		click    = Sample.fromResource("click.wav"); click.volume = 0.5;
@@ -58,7 +58,7 @@ program {
 		for (int n = 0; n < 20; n++) rllist ~= new RandomLight;
 
 		// Creamos un nuevo tablero
-		board = new Board(22, 15, 45);
+		board = new Board(22, 15, 40);
 
 		z = -1;
 		board.z = 1;

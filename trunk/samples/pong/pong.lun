@@ -1,0 +1,212 @@
+config {
+	output: "pong.exe";
+	temp: false;
+	library: "default";
+	icon: "pelota.ico";
+	title: "Pong";
+}
+
+Font font;
+
+Image ipelota; // Imagen de la pelota
+Image ibarra;  // Imagen de las barras
+Image ifondo;  // Imagen de fondo
+
+Pelota pelota;   // Proceso de la pelota
+Barra  jugador1; // Proceso barra del jugador1
+Barra  jugador2; // Proceso barra del jugador2
+
+// Cargamos las imágenes utilizadas en el juego
+void cargarImagenes() {
+	ipelota = Image.fromFile("pelota.png");
+	ibarra  = Image.fromFile("barra.png");
+	ifondo  = Image.fromFile("fondo.jpg");
+	ifondo.cy = ifondo.cx = 0;
+	ibarra.cy = ibarra.cx = 0;
+}
+
+// Definimos el comportamiento de la pelota
+process Pelota {
+	real vx, vy;
+
+	// Método que centra la pelota
+	void center() {
+		x = Screen.width  / 2;
+		y = Screen.height / 2;
+	}
+
+	action main {
+		graph = ipelota;
+		center();
+
+		vx = 4;
+		vy = 4;
+
+		while (true) {
+			x += vx;
+			y += vy;
+
+			if (x - ipelota.w / 2 <= 0 && vx < 0) vx = -vx;
+			if (x + ipelota.w / 2 >= Screen.width && vx > 0) vx = -vx;
+			if (y - ipelota.h / 2 <= 0 && vy < 0) vy = -vy;
+			if (y + ipelota.h / 2 >= Screen.height && vy > 0) vy = -vy;
+
+			frame();
+		}
+	}
+}
+
+collision(Barra barra, Pelota pelota) {
+	if (pelota.y + ipelota.cy < barra.y) return false;
+	if (pelota.y - ipelota.cy > barra.y + ibarra.h) return false;
+	if (pelota.x - ipelota.cx > barra.x + ibarra.w) return false;
+	if (pelota.x + ipelota.cx < barra.x) return false;
+	return true;
+}
+
+process Barra {
+	enum Controller {
+		teclado1,
+		teclado2,
+		raton,
+		cpu
+	}
+
+	Controller controller;
+	int player;
+
+
+	this(int player, Controller controller) {
+		this.player = player;
+		this.controller = controller;
+	}
+
+	real vy = 3.5;
+
+	private void setyin() {
+		if (y < 0) y = 0; else if (y + graph.h > Screen.height) y = Screen.height - graph.h;
+	}
+
+	void checkCollision() {
+		Process cp;
+		if ((cp = collision("Pelota")) !is null) {
+			Pelota pelota = cast(Pelota)cp;
+			if (player == 1) {
+				if (pelota.vx < 0) pelota.vx = -pelota.vx;
+			} else {
+				if (pelota.vx > 0) pelota.vx = -pelota.vx;
+			}
+
+			real v = abs((y + graph.h / 2) - pelota.y) * 6 / graph.h + 4;
+
+			if (pelota.vy < 0) pelota.vy = -v; else pelota.vy = v;
+			//
+			//printf("LOL");
+			//vx = -vx;
+		}
+	}
+
+	action main {
+		if (player == 1) {
+			x = 10;
+		} else {
+			x = Screen.width - ibarra.w - 10;
+		}
+
+		y = Screen.height / 2 - ibarra.h / 2;
+		graph = ibarra;
+		switch (controller) {
+			case Controller.teclado1: action(teclado1);
+			case Controller.teclado2: action(teclado2);
+			case Controller.raton:    action(raton);
+			case Controller.cpu:      action(cpu);
+		}
+	}
+
+	action teclado1 {
+		while (true) {
+			if (key[_up]) y -= vy;
+			if (key[_down]) y += vy;
+			setyin();
+			checkCollision();
+			frame();
+		}
+	}
+
+	action raton {
+		while (true) {
+			y = Mouse.y - graph.h / 2;
+			setyin();
+			checkCollision();
+			frame();
+		}
+	}
+
+	action teclado2 {
+		while (true) {
+			if (key[_w]) y -= vy;
+			if (key[_s]) y += vy;
+			setyin();
+			checkCollision();
+			frame();
+		}
+	}
+
+	action cpu {
+		while (true) {
+			real zy = y + graph.h / 2;
+			if (pelota.y < zy) {
+				if (y > 0) {
+					zy -= vy;
+					if (zy + vy > pelota.y && zy < pelota.y) zy = pelota.y;
+				}
+			} else {
+				if (y + graph.h < Screen.h) {
+					zy += vy;
+					if (zy - vy < pelota.y && zy > pelota.y) zy = pelota.y;
+				}
+			}
+			y = zy - graph.h / 2;
+			setyin();
+			checkCollision();
+			frame();
+		}
+	}
+}
+
+process Test1 {
+	action main {
+	}
+}
+
+program {
+	action main {
+		cargarImagenes();
+
+		pelota   = new Pelota();
+		jugador1 = new Barra(1, Barra.Controller.teclado1);
+		jugador2 = new Barra(2, Barra.Controller.cpu);
+
+		//graph = pelota;
+
+		font = new Font("Arial", 40);
+
+		Text texto = new Text("lol esto es una prueba para ver que tal funciona", 100, 100);
+
+		texto.x = 320;
+		texto.y = 240;
+		texto.halign = Text.Align.center;
+		texto.valign = Text.Align.middle;
+
+		while (!key[_esc]) {
+			frame();
+		}
+
+		exit();
+	}
+
+	action draw {
+		ifondo.draw(0, 0);
+		//font.draw("Puntuacion: ", 10, 10, Color.white);
+	}
+}

@@ -37,6 +37,13 @@
 		}
 	}
 
+	action fadeout {
+		while (alpha > 0) {
+			alpha -= 0.1;
+			frame();
+		}
+	}
+
 	action draw {
 		graph.draw(__x, __y, alpha, 0, size, alpha, alpha, alpha, GL_ONE, GL_ONE);
 	}
