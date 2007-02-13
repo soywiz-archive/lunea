@@ -36,10 +36,12 @@ public abstract class Process implements Runnable, Comparable {
         return name;
     }
 
-    public synchronized void run() {
+    public void run() {
         // Debemos entrar en espera de que nos den paso
         try {
-            wait();
+            synchronized (this) {
+                wait();
+            }
         } catch (InterruptedException e1) {
             // TODO Auto-generated catch block
             e1.printStackTrace();
