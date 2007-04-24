@@ -193,7 +193,7 @@ class GameBoy {
 	union { u16 HL; u8 H_L[2]; } // H, L
 	u16 SP;                      // Stack Pointer
 	u16 PC;                      // Program Counter
-	bool CF;                     // Carry Flag
+	bool ZF, NF, HF, CF;         // Zero Flag, Add/Sub-Flag, Half Carry Flag, Carry Flag
 
 	// Utilitarios
 	u32 cycles; // Cantidad de ciclos * 1000 ejecutados
@@ -223,8 +223,56 @@ class GameBoy {
 		disasm(MEM[0x100..0x104], 0x100);
 	}
 
+				void RLC(u8*  r) { CF = ((*r >>  7) != 0); *r = (*r << 1) | CF; ZF = (*r == 0); HF = NF = false; }
+				void RLC(u16* r) { CF = ((*r >> 15) != 0); *r = (*r << 1) | CF; ZF = (*r == 0); HF = NF = false; }
+				void RRC(u8*  r) { CF = ((*r &   1) != 0); *r = (*r >> 1) | (CF << 7); ZF = (*r == 0); HF = NF = false; }
+				void RRC(u16* r) { CF = ((*r &   1) != 0); *r = (*r >> 1) | (CF << 15); ZF = (*r == 0); HF = NF = false; }
+
+				void RL(u8*  r) { }
+				void RL(u16* r) { }
+				void RR(u8*  r) { }
+				void RR(u16* r) { }
+
+				void SLA(u8*  r) { }
+				void SLA(u16* r) { }
+				void SRA(u8*  r) { }
+				void SRA(u16* r) { }
+
+				void SWAP(u8*  r) { }
+				void SWAP(u16* r) { }
+
+				void SRL(u8*  r) { }
+				void SRL(u16* r) { }
+
+				void BIT(u8*  r) { }
+				void BIT(u16* r) { }
+
+				void RES(u8*  r) { }
+				void RES(u16* r) { }
+				void SET(u8*  r) { }
+				void SET(u16* r) { }
+
 	// Interpreta una sucesión de opcodes
 	void interpret() {
+
+/*
+Public Sub rl(ByRef reg8 As Long) 'Rotate left thru carry
+    temp_var = reg8 \ 128
+    reg8 = ((reg8 * 2) Or cf) And 255
+    setZ reg8 = 0
+    cf = temp_var
+    hf = 0
+    nf = 0
+End Sub
+Public Sub rlc(ByRef reg8 As Long) 'rotate left
+    cf = reg8 \ 128
+    reg8 = (reg8 * 2) And 255 Or cf
+    setZ reg8 = 0
+    hf = 0
+    nf = 0
+End Sub
+*/
+
 		while (true) {
 			u8 op = MEM[PC++];
 
@@ -248,36 +296,17 @@ class GameBoy {
 
 				// Decodificación de la operación
 				switch (op & 0b11111000) {
-					/* RLC  */ case 0x00:
-						if (hl) {
-							u16 *r = reg_cb;
-							CF = (*r >> 15);
-							*r = (*r << 1) | CF;
-						} else {
-							u8 *r = reg_cb;
-							*r = (*r << 1) | CF;
-						}
-					break;
-					/* RRC  */ case 0x08:
-						if (hl) {
-							u16 *r = reg_cb;
-							CF = *r & 1;
-							*r = (*r >> 1) | (CF << 15);
-						} else {
-							u8 *r = reg_cb;
-							CF = *r & 1;
-							*r = (*r >> 1) | (CF << 7);
-						}
-					break;
-					/* RL   */ case 0x10: break;
-					/* RR   */ case 0x18: break;
-					/* SLA  */ case 0x20: break;
-					/* SRA  */ case 0x28: break;
-					/* SWAP */ case 0x30: break;
-					/* SRL  */ case 0x38: break;
-					/* BIT  */ case 0x40: break;
-					/* RES  */ case 0x80: break;
-					/* SER  */ case 0xC0: break;
+					/* RLC  */ case 0x00: hl ? RLC (cast(u16*)reg_cb) : RLC (cast(u8*)reg_cb); break;
+					/* RRC  */ case 0x08: hl ? RRC (cast(u16*)reg_cb) : RRC (cast(u8*)reg_cb); break;
+					/* RL   */ case 0x10: hl ? RL  (cast(u16*)reg_cb) : RL  (cast(u8*)reg_cb); break;
+					/* RR   */ case 0x18: hl ? RR  (cast(u16*)reg_cb) : RR  (cast(u8*)reg_cb); break;
+					/* SLA  */ case 0x20: hl ? SLA (cast(u16*)reg_cb) : SLA (cast(u8*)reg_cb); break;
+					/* SRA  */ case 0x28: hl ? SRA (cast(u16*)reg_cb) : SRA (cast(u8*)reg_cb); break;
+					/* SWAP */ case 0x30: hl ? SWAP(cast(u16*)reg_cb) : SWAP(cast(u8*)reg_cb); break;
+					/* SRL  */ case 0x38: hl ? SRL (cast(u16*)reg_cb) : SRL (cast(u8*)reg_cb); break;
+					/* BIT  */ case 0x40: hl ? BIT (cast(u16*)reg_cb) : BIT (cast(u8*)reg_cb); break;
+					/* RES  */ case 0x80: hl ? RES (cast(u16*)reg_cb) : RES (cast(u8*)reg_cb); break;
+					/* SET  */ case 0xC0: hl ? SET (cast(u16*)reg_cb) : SET (cast(u8*)reg_cb); break;
 				}
 
 				addCycles(opcycles_cb[op]);
