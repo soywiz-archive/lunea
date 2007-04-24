@@ -9,6 +9,7 @@ import gameboy.common;
 	writefln(__FILE__, __LINE__, arg);
 }*/
 
+//version = trace_all;
 version = trace;
 
 /*
@@ -359,11 +360,15 @@ class GameBoy {
 
 			// Trazamos la instrucción si corresponde
 			version(trace) {
-				showinst = false;
-				if (!MEM_TRACED[CPC]) {
+				version(trace_all) {
 					traceInstruction(CPC);
-					MEM_TRACED[CPC] = true;
-					showinst = true;
+				} else {
+					showinst = false;
+					if (!MEM_TRACED[CPC]) {
+						traceInstruction(CPC);
+						MEM_TRACED[CPC] = true;
+						showinst = true;
+					}
 				}
 			}
 
@@ -415,12 +420,19 @@ class GameBoy {
 					case 0x0D: DEC(C);    break; // DEC C
 					case 0x0E: C = pu8;   break; // LD C, nn
 					case 0x16: D = pu8;   break; // LD D, nn
-					case 0x19: HL = DE;   break; // LD HL, DE
+					case 0x19: // ADD HL, DE
+						CF = ((HL + DE) < HL);
+						HF = ((HL & 0xFFF) + (DE & 0xFFF)) > 0xFFF;
+						HL = HL + DE;
+						NF = false;
+					break;
 					case 0x20: if (!ZF) PC = PC + ps8; break; // JR NZ, PC+nn
 					
 					case 0x23: HL = INC(HL); break; // INC HL
-					
-					case 0x28: case 0x29: case 0x2A: case 0x2B: case 0x2C: case 0x2D: case 0x2E: case 0x2F: // SRA R
+					case 0x2A: A  = r8 (MEM.ptr, HL); break; // LDI  A,(HL) ---- special (old ld hl,(nnnn))
+					case 0x2F: A = 255 - A; HF = true; NF = true; break; // Logical NOT
+					/*
+					//case 0x28: case 0x29: case 0x2A: case 0x2B: case 0x2C: case 0x2D: case 0x2E: case 0x2F: // SRA R
 						if ((op & 0b111) == 6) {
 							CF = (HL & 1) != 0;
 							HL = HL >> 1;
@@ -433,7 +445,7 @@ class GameBoy {
 						HF = false;
 						NF = false;
 					break;
-					
+					*/
 					case 0x21: HL = pu16; break; // LD HL, nnnn
 					case 0x31: SP = pu16; break; // LD sp, nnnn
 					case 0x32: w8(MEM.ptr, pu16, A); break; // LDD (nnnnn), A
