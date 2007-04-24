@@ -1,4 +1,4 @@
-﻿import std.stdio, std.string, std.stream, std.c.stdlib;
+﻿import std.stdio, std.string, std.stream, std.c.stdlib, std.zlib;
 
 alias ubyte  u8;
 alias ushort u16;
@@ -201,25 +201,43 @@ class GameBoy {
 
 	// Registros
 	u8 A; u8 F;
+	u8 B; u8 C;
+	u8 D; u8 E;
+	u8 H; u8 L;
+	u16 SP; // Stack Pointer
+	u16 PC; // Program Counter
+	u8  IME; // Interrupt Master Enable Flag (Write Only)
+
 	u16 AF() { return *cast(u16*)&A; }
 	void AF(u16 v) { *cast(u16*)&A = v; }
 
-	u8 B; u8 C;
 	u16 BC() { return *cast(u16*)&B; }
 	void BC(u16 v) { *cast(u16*)&B = v; }
 
-	u8 D; u8 E;
 	u16 DE() { return *cast(u16*)&D; }
 	void DE(u16 v) { *cast(u16*)&D = v; }
 
-	u8 H; u8 L;
 	u16 HL() { return *cast(u16*)&H; }
 	void HL(u16 v) { *cast(u16*)&H = v; }
 
-	u16 SP;                      // Stack Pointer
-	u16 PC;                      // Program Counter
-	bool ZF, NF, HF, CF;         // Zero Flag, Add/Sub-Flag, Half Carry Flag, Carry Flag
-	bool IME;                    // Interrupt Master Enable Flag (Write Only)
+
+	static const u8 CFMASK = 0b00010000;
+	bool CF() { return (F & ZFMASK) != 0; }
+	void CF(bool set) { if (set) F |= CFMASK; else F &= ~CFMASK; }
+
+	static const u8 HFMASK = 0b00100000;
+	bool HF() { return (F & HFMASK) != 0; }
+	void HF(bool set) { if (set) F |= HFMASK; else F &= ~HFMASK; }
+
+	static const u8 NFMASK = 0b01000000;
+	bool NF() { return (F & NFMASK) != 0; }
+	void NF(bool set) { if (set) F |= NFMASK; else F &= ~NFMASK; }
+
+	static const u8 ZFMASK = 0b10000000;
+	bool ZF() { return (F & ZFMASK) != 0; }
+	void ZF(bool set) { if (set) F |= ZFMASK; else F &= ~ZFMASK; }
+
+	//bool ZF, NF, HF, CF;         // Zero Flag, Add/Sub-Flag, Half Carry Flag, Carry Flag
 
 	// Utilitarios
 	int cycles; // Cantidad de ciclos * 1000 ejecutados
@@ -243,17 +261,18 @@ class GameBoy {
 	// Cargamos la rom
 	void loadRom(char[] name) { loadRom(new File(name, FileMode.In)); }
 	void loadRom(Stream s) {
-		s.readExact(MEM.ptr, 0x4000);
+		//s.readExact(MEM.ptr, 0x4000);
+		s.readExact(MEM.ptr, 0x8000);
 		rh = cast(RomHeader *)(MEM.ptr + 0x100);
 		rom = s;
 
 		//traceInstruction(0x020C, 20); exit(-1);
 	}
 
-	void RLC(u8*  r) { CF = ((*r >>  7) != 0); *r = (*r << 1) | CF; ZF = (*r == 0); HF = NF = false; }
-	void RLC(u16* r) { CF = ((*r >> 15) != 0); *r = (*r << 1) | CF; ZF = (*r == 0); HF = NF = false; }
-	void RRC(u8*  r) { CF = ((*r &   1) != 0); *r = (*r >> 1) | (CF << 7); ZF = (*r == 0); HF = NF = false; }
-	void RRC(u16* r) { CF = ((*r &   1) != 0); *r = (*r >> 1) | (CF << 15); ZF = (*r == 0); HF = NF = false; }
+	void RLC(u8*  r) { CF = ((*r >>  7) != 0); *r = (*r << 1) | (CF <<  0); ZF = (*r == 0); HF = false; NF = false; }
+	void RLC(u16* r) { CF = ((*r >> 15) != 0); *r = (*r << 1) | (CF <<  0); ZF = (*r == 0); HF = false; NF = false; }
+	void RRC(u8*  r) { CF = ((*r &   1) != 0); *r = (*r >> 1) | (CF <<  7); ZF = (*r == 0); HF = false; NF = false; }
+	void RRC(u16* r) { CF = ((*r &   1) != 0); *r = (*r >> 1) | (CF << 15); ZF = (*r == 0); HF = false; NF = false; }
 
 	void RL(u8*  r) { }
 	void RL(u16* r) { }
@@ -297,7 +316,10 @@ class GameBoy {
 			u8* addr = MEM.ptr + PC;
 			writef("TRACE: ");
 			writef("%04X: ", PC);
-			writef("%s [", disasm(addr));
+			char[] casm = disasm(addr, PC);
+			writef("%s", casm);
+			for (int n = 0; n < 0x0E - cast(int)casm.length; n++) writef(" ");
+			writef("[");
 			for (u8* p = MEM.ptr + PC; p < addr; p++) writef("%02X", *p);
 			writefln("]");
 			PC = addr - MEM.ptr;
@@ -337,6 +359,14 @@ class GameBoy {
 		IME = true;
 	}
 
+	void dump() {
+		File save = new File("dump", FileMode.OutNew);
+		save.writeExact(&A, (&IME - &A) + IME.sizeof);
+		//save.write(cast(ubyte[])compress(MEM, 9));
+		save.write(MEM);
+		save.close();
+	}
+
 	// Interpreta una sucesión de opcodes
 	void interpret() {
 		void *APC;
@@ -345,6 +375,7 @@ class GameBoy {
 		void *reg_cb;
 		bool hl;
 		int ticks = 1024;
+		bool showinst;
 
 		u8 *get_reg8(int r) {
 			switch (r) {
@@ -360,6 +391,11 @@ class GameBoy {
 		s16 ps16() { return *cast(s16*)APC; }
 
 		while (true) {
+			if (PC == 0x0237) {
+				dump();
+				exit(-1);
+			}
+
 			CPC = PC;
 			op = MEM[PC++];
 			if (ticks-- <= 0) {
@@ -371,9 +407,11 @@ class GameBoy {
 
 			// Trazamos la instrucción si corresponde
 			version(trace) {
+				showinst = false;
 				if (!MEM_TRACED[CPC]) {
 					traceInstruction(CPC);
 					MEM_TRACED[CPC] = true;
+					showinst = true;
 				}
 			}
 
@@ -400,6 +438,8 @@ class GameBoy {
 				APC = &MEM[PC];
 				PC += opargs[op];
 
+				int RPC = PC;
+
 				addCycles(opcycles[op]);
 
 				// Localización del registro ["B", "C", "D", "E", "H", "L", "(HL)", "A"];
@@ -420,18 +460,23 @@ class GameBoy {
 					case 0xA0: case 0xA1: case 0xA2: case 0xA3: case 0xA4: case 0xA5: case 0xA6: case 0xA7: // AND
 						A &= ((op & 0b111) == 6) ? HL : *get_reg8(op & 0b111);
 						ZF = (A == 0);
-						CF = NF = false;
+						CF = false;
+						NF = false;
 						HF = true;
 					break;
 					case 0xA8: case 0xA9: case 0xAA: case 0xAB: case 0xAC: case 0xAD: case 0xAE: case 0xAF: // XOR
 						A ^= ((op & 0b111) == 6) ? HL : *get_reg8(op & 0b111);
 						ZF = (A == 0);
-						CF = HF = NF = false;
+						CF = false;
+						HF = false;
+						NF = false;
 					break;
 					case 0xB0: // OR
 						A |= ((op & 0b111) == 6) ? HL : *get_reg8(op & 0b111);
 						ZF = (A == 0);
-						CF = HF = NF = false;
+						CF = false;
+						HF = false;
+						NF = false;
 					break;
 					case 0xC3: PC = pu16; break;
 					case 0xE0: // LD ($FF00+nn),A
@@ -451,6 +496,12 @@ nf = 1*/
 						writefln("             \x18_____________________________ Instruction not emulated");
 						return;
 					break;
+				}
+
+				version(trace) {
+					if (showinst && PC != RPC) {
+						writefln("-----------------------------------");
+					}
 				}
 			}
 		}
@@ -500,9 +551,9 @@ nf = 1*/
 	u8 r8(u16 addr) {
 		scope(exit) MEM_TRACED[addr] = true;
 
-		if (!MEM_TRACED[addr]) {
+		if (!MEM_TRACED[addr])
 			writefln("READ %04X -> %02X", addr, MEM[addr]);
-		}
+
 
 		return MEM[addr];
 	}
@@ -510,9 +561,8 @@ nf = 1*/
 	void w8(u16 addr, u8 v) {
 		scope(exit) MEM_TRACED[addr] = true;
 
-		if (!MEM_TRACED[addr]) {
+		if (!MEM_TRACED[addr])
 			writefln("WRITE %04X <- %02X", addr, v);
-		}
 
 		switch (addr >> 12) {
 			case 0x0: case 0x1: case 0x2: case 0x3: // 0000-3FFF   16KB ROM Bank 00     (in cartridge, fixed at bank 00)
@@ -550,6 +600,7 @@ nf = 1*/
 					switch (addr) {
 					// INPUT (Joypad Input)
 						case 0xFF00: // FF00 - P1/JOYP - Joypad (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE JOYPAD");
 							/*
 							The eight gameboy buttons/direction keys are arranged in form of a 2x4 matrix. Select either button or direction keys by writing to this register, then read-out bit 0-3.
 
@@ -565,11 +616,13 @@ nf = 1*/
 						break;
 					// SERIAL (Serial Data Transfer (Link Cable))
 						case 0xFF01: // FF01 - SB - Serial transfer data (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE SERIAL");
 							/*
 							8 Bits of data to be read/written
 							*/
 						break;
 						case 0xFF02: // FF02 - SC - Serial Transfer Control (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE SERIAL");
 							/*
 							Bit 7 - Transfer Start Flag (0=No Transfer, 1=Start)
 							Bit 1 - Clock Speed (0=Normal, 1=Fast) ** CGB Mode Only **
@@ -577,21 +630,25 @@ nf = 1*/
 							*/
 						break;
 						case 0xFF04: //FF04 - DIV - Divider Register (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE SERIAL");
 							/*
 							This register is incremented at rate of 16384Hz (~16779Hz on SGB). In CGB Double Speed Mode it is incremented twice as fast, ie. at 32768Hz. Writing any value to this register resets it to 00h.
 							*/
 						break;
 						case 0xFF05: //FF05 - TIMA - Timer counter (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE SERIAL");
 							/*
 							This timer is incremented by a clock frequency specified by the TAC register ($FF07). When the value overflows (gets bigger than FFh) then it will be reset to the value specified in TMA (FF06), and an interrupt will be requested, as described below.
 							*/
 						break;
 						case 0xFF06: //FF06 - TMA - Timer Modulo (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE SERIAL");
 							/*
 							When the TIMA overflows, this data will be loaded.
 							*/
 						break;
 						case 0xFF07: //FF07 - TAC - Timer Control (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE SERIAL");
 							/*
 							Bit 2    - Timer Stop  (0=Stop, 1=Start)
 							Bits 1-0 - Input Clock Select
@@ -603,6 +660,7 @@ nf = 1*/
 						break;
 					// INTERRUPTS
 						case 0xFFFF: // FFFF - IE - Interrupt Enable (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE INTERRUPT ENABLE");
 							/*
 							Bit 0: V-Blank  Interrupt Enable  (INT 40h)  (1=Enable)
 							Bit 1: LCD STAT Interrupt Enable  (INT 48h)  (1=Enable)
@@ -612,6 +670,7 @@ nf = 1*/
 							*/
 						break;
 						case 0xFF0F: // FF0F - IF - Interrupt Flag (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE INTERRUPT FLAG");
 							/*
 							Bit 0: V-Blank  Interrupt Request (INT 40h)  (1=Request)
 							Bit 1: LCD STAT Interrupt Request (INT 48h)  (1=Request)
@@ -622,6 +681,7 @@ nf = 1*/
 						break;
 					// SOUND (Sound Channel 1 - Tone & Sweep)
 						case 0xFF10: // FF10 - NR10 - Channel 1 Sweep register (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE SOUND CHANNEL");
 							/*
 							Bit 6-4 - Sweep Time
 							Bit 3   - Sweep Increase/Decrease
@@ -646,6 +706,7 @@ nf = 1*/
 							*/
 						break;
 						case 0xFF11: // FF11 - NR11 - Channel 1 Sound length/Wave pattern duty (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE SOUND CHANNEL");
 							/*
 							Bit 7-6 - Wave Pattern Duty (Read/Write)
 							Bit 5-0 - Sound length data (Write Only) (t1: 0-63)
@@ -662,6 +723,7 @@ nf = 1*/
 							*/
 						break;
 						case 0xFF12: // FF12 - NR12 - Channel 1 Volume Envelope (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE SOUND CHANNEL");
 							/*
 							Bit 7-4 - Initial Volume of envelope (0-0Fh) (0=No Sound)
 							Bit 3   - Envelope Direction (0=Decrease, 1=Increase)
@@ -671,12 +733,14 @@ nf = 1*/
 							Length of 1 step = n*(1/64) seconds
 							*/
 						case 0xFF13: // FF13 - NR13 - Channel 1 Frequency lo (Write Only)
+							if (!MEM_TRACED[addr]) writefln("WRITE SOUND CHANNEL");
 							/*
 							Lower 8 bits of 11 bit frequency (x).
 							Next 3 bit are in NR14 ($FF14)
 							*/
 						break;
 						case 0xFF14: // FF14 - NR14 - Channel 1 Frequency hi (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE SOUND CHANNEL");
 							/*
 							Bit 7   - Initial (1=Restart Sound)     (Write Only)
 							Bit 6   - Counter/consecutive selection (Read/Write)
@@ -688,6 +752,7 @@ nf = 1*/
 						break;
 					// SOUND (Sound Channel 2 - Tone)
 						case 0xFF16: // FF16 - NR21 - Channel 2 Sound Length/Wave Pattern Duty (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE SOUND TONE");
 							/*
 							Bit 7-6 - Wave Pattern Duty (Read/Write)
 							Bit 5-0 - Sound length data (Write Only) (t1: 0-63)
@@ -704,6 +769,7 @@ nf = 1*/
 							*/
 						break;
 						case 0xFF17: // FF17 - NR22 - Channel 2 Volume Envelope (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE SOUND TONE");
 							/*
 							Bit 7-4 - Initial Volume of envelope (0-0Fh) (0=No Sound)
 							Bit 3   - Envelope Direction (0=Decrease, 1=Increase)
@@ -714,6 +780,7 @@ nf = 1*/
 							*/
 						break;
 						case 0xFF18: // FF18 - NR23 - Channel 2 Frequency lo data (W)
+							if (!MEM_TRACED[addr]) writefln("WRITE SOUND TONE");
 							/*
 							Frequency's lower 8 bits of 11 bit data (x).
 							Next 3 bits are in NR24 ($FF19).
@@ -730,11 +797,13 @@ nf = 1*/
 						break;
 					// SOUND (Sound Channel 3 - Wave Output)
 						case 0xFF1A: // FF1A - NR30 - Channel 3 Sound on/off (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE SOUND WAVE");
 							/*
 							Bit 7 - Sound Channel 3 Off  (0=Stop, 1=Playback)  (Read/Write)
 							*/
 						break;
 						case 0xFF1B: // FF1B - NR31 - Channel 3 Sound Length
+							if (!MEM_TRACED[addr]) writefln("WRITE SOUND WAVE");
 							/*
 							Bit 7-0 - Sound length (t1: 0 - 255)
 
@@ -743,6 +812,7 @@ nf = 1*/
 							*/
 						break;
 						case 0xFF1C: // FF1C - NR32 - Channel 3 Select output level (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE SOUND WAVE");
 							/*
 							Bit 6-5 - Select output level (Read/Write)
 
@@ -755,6 +825,7 @@ nf = 1*/
 							*/
 						break;
 						case 0xFF1D: // FF1D - NR33 - Channel 3 Frequency's lower data (W)
+							if (!MEM_TRACED[addr]) writefln("WRITE SOUND WAVE");
 							/*
 							Lower 8 bits of an 11 bit frequency (x).
 
@@ -770,6 +841,7 @@ nf = 1*/
 						break;
 						case 0xFF30: case 0xFF31: case 0xFF32: case 0xFF33: case 0xFF34: case 0xFF35: case 0xFF36: // FF30-FF3F - Wave Pattern RAM
 						case 0xFF37: case 0xFF38: case 0xFF39: case 0xFF3A: case 0xFF3B: case 0xFF3C: case 0xFF3D: case 0xFF3E: case 0xFF3F:
+							if (!MEM_TRACED[addr]) writefln("WRITE SOUND WAVE");
 							/*
 							Contents - Waveform storage for arbitrary sound data
 
@@ -778,6 +850,7 @@ nf = 1*/
 						break;
 					// SOUND (Sound Channel 4 - Noise)
 						case 0xFF20: // FF20 - NR41 - Channel 4 Sound Length (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE SOUND NOISE");
 							/*
 							Bit 5-0 - Sound length data (t1: 0-63)
 
@@ -786,6 +859,7 @@ nf = 1*/
 							*/
 						break;
 						case 0xFF21: // FF21 - NR42 - Channel 4 Volume Envelope (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE SOUND NOISE");
 							/*
 							Bit 7-4 - Initial Volume of envelope (0-0Fh) (0=No Sound)
 							Bit 3   - Envelope Direction (0=Decrease, 1=Increase)
@@ -796,6 +870,7 @@ nf = 1*/
 							*/
 						break;
 						case 0xFF22: // FF22 - NR43 - Channel 4 Polynomial Counter (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE SOUND NOISE");
 							/*
 							The amplitude is randomly switched between high and low at the given frequency. A higher frequency will make the noise to appear 'softer'.
 							When Bit 3 is set, the output will become more regular, and some frequencies will sound more like Tone than Noise.
@@ -808,6 +883,7 @@ nf = 1*/
 							*/
 						break;
 						case 0xFF23: // FF23 - NR44 - Channel 4 Counter/consecutive; Inital (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE SOUND NOISE");
 							/*
 							Bit 7   - Initial (1=Restart Sound)     (Write Only)
 							Bit 6   - Counter/consecutive selection (Read/Write)
@@ -816,6 +892,7 @@ nf = 1*/
 						break;
 					// SOUND (Sound Control Registers)
 						case 0xFF24: // FF24 - NR50 - Channel control / ON-OFF / Volume (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE SOUND NOISE");
 							/*
 							The volume bits specify the "Master Volume" for Left/Right sound output.
 
@@ -828,6 +905,7 @@ nf = 1*/
 							*/
 						break;
 						case 0xFF25: // FF25 - NR51 - Selection of Sound output terminal (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE SOUND NOISE");
 							/*
 							Bit 7 - Output sound 4 to SO2 terminal
 							Bit 6 - Output sound 3 to SO2 terminal
@@ -840,6 +918,7 @@ nf = 1*/
 							*/
 						break;
 						case 0xFF26: // FF26 - NR52 - Sound on/off
+							if (!MEM_TRACED[addr]) writefln("WRITE SOUND NOISE");
 							/*
 							If your GB programs don't use sound then write 00h to this register to save 16% or more on GB power consumption. Disabeling the sound controller by clearing Bit 7 destroys the contents of all sound registers. Also, it is not possible to access any sound registers (execpt FF26) while the sound controller is disabled.
 
@@ -854,6 +933,7 @@ nf = 1*/
 						break;
 					// LCD
 						case 0xFF40: // FF40 - LCDC - LCD Control (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE LCD");
 							/*
 							Bit 7 - LCD Display Enable             (0=Off, 1=On)
 							Bit 6 - Window Tile Map Display Select (0=9800-9BFF, 1=9C00-9FFF)
@@ -866,6 +946,7 @@ nf = 1*/
 							*/
 						break;
 						case 0xFF41: // FF41 - STAT - LCDC Status (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE LCDC STATUS");
 							/*
 							Bit 6 - LYC=LY Coincidence Interrupt (1=Enable) (Read/Write)
 							Bit 5 - Mode 2 OAM Interrupt         (1=Enable) (Read/Write)
@@ -880,8 +961,10 @@ nf = 1*/
 							*/
 						break;
 						case 0xFF42: // FF42 - SCY - Scroll Y (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE LCD SCROLL Y");
 						break;
 						case 0xFF43: // FF43 - SCX - Scroll X (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE LCD SCROLL X");
 							/*
 							Specifies the position in the 256x256 pixels BG map (32x32 tiles) which is to be
 							displayed at the upper/left LCD display position. Values in range from 0-255 may be
@@ -891,16 +974,19 @@ nf = 1*/
 						break;
 
 						case 0xFF44: // FF44 - LY - LCDC Y-Coordinate (R)
+							if (!MEM_TRACED[addr]) writefln("WRITE LCDC YCOORD");
 							/*
 							The LY indicates the vertical line to which the present data is transferred to the LCD Driver. The LY can take on any value between 0 through 153. The values between 144 and 153 indicate the V-Blank period. Writing will reset the counter.
 							*/
 						break;
 						case 0xFF45: // FF45 - LYC - LY Compare (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE LCDC YCOMP");
 							/*
 							The gameboy permanently compares the value of the LYC and LY registers. When both values are identical, the coincident bit in the STAT register becomes set, and (if enabled) a STAT interrupt is requested.
 							*/
 						break;
 						case 0xFF46: // FF46 - DMA - DMA Transfer and Start Address (W)
+							if (!MEM_TRACED[addr]) writefln("WRITE DMA");
 							/*
 							Writing to this register launches a DMA transfer from ROM or RAM to OAM memory (sprite attribute table). The written value specifies the transfer source address divided by 100h, ie. source & destination are:
 
@@ -919,6 +1005,7 @@ nf = 1*/
 							*/
 						break;
 						case 0xFF47: // FF47 - BGP - BG Palette Data (R/W) - Non CGB Mode Only
+							if (!MEM_TRACED[addr]) writefln("WRITE BG PAL");
 							/*
 							This register assigns gray shades to the color numbers of the BG and Window tiles.
 
@@ -938,20 +1025,24 @@ nf = 1*/
 							*/
 						break;
 						case 0xFF48: // FF48 - OBP0 - Object Palette 0 Data (R/W) - Non CGB Mode Only
+							if (!MEM_TRACED[addr]) writefln("WRITE OBJ PAL0");
 							/*
 							This register assigns gray shades for sprite palette 0. It works exactly as BGP (FF47),
 							except that the lower two bits aren't used because sprite data 00 is transparent.
 							*/
 						break;
 						case 0xFF49: // FF49 - OBP1 - Object Palette 1 Data (R/W) - Non CGB Mode Only
+							if (!MEM_TRACED[addr]) writefln("WRITE OBJ PAL1");
 							/*
 							This register assigns gray shades for sprite palette 1. It works exactly as BGP (FF47),
 							except that the lower two bits aren't used because sprite data 00 is transparent.
 							*/
 						break;
 						case 0xFF4A: // FF4A - WY - Window Y Position (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE WIN Y");
 						break;
 						case 0xFF4B: // FF4B - WX - Window X Position minus 7 (R/W)
+							if (!MEM_TRACED[addr]) writefln("WRITE WIN X");
 							/*
 							Specifies the upper/left positions of the Window area. (The window is an
 							alternate background area which can be displayed above of the normal background.
@@ -963,13 +1054,15 @@ nf = 1*/
 						break;
 					}
 				} else if (addr < 0xFFFF) { // FF80-FFFE High RAM (HRAM)
+					if (!MEM_TRACED[addr]) writefln("WRITE HRAM");
 				} else { // FFFF Interrupt Enable Register
+					if (!MEM_TRACED[addr]) writefln("WRITE FFFF");
 				}
 			break;
 		}
 	}
 
-	static char[] disasm(inout u8* addr) {
+	static char[] disasm(inout u8* addr, u16 PC = 0) {
 		bool sign = false;
 		char[] fmt;
 
@@ -988,11 +1081,17 @@ nf = 1*/
 		fmt = opdisasm[op];
 		int cb = opargs[op];
 		if (cb == 0) return fmt;
-		int v; if (cb == 1) v = *cast(u8*)addr; else v = *cast(u16*)addr;
-		for (int n = 0; n < fmt.length; n++) if (fmt[n] == '*') { fmt[n] = '#'; sign = true; break; }
-		addr += cb; fmt = replace(fmt, "#", format("%%s" "$" "%%0" "%d" "X", cb * 2));
+		int v; if (cb == 1) v = *cast(s8*)addr; else v = *cast(s16*)addr;
+		for (int n = 0; n < fmt.length; n++) if (fmt[n] == '*') { sign = true; break; }
+		addr += cb;
+		fmt = replace(fmt, "#", format("%%s" "$" "%%0" "%d" "X", cb * 2));
+		fmt = replace(fmt, "*", format("%%s" "$" "%%0" "%d" "X", cb * 2));
 
-		return format(fmt, (sign && v < 0) ? "-" : "", v);
+		if (sign) {
+			return format(fmt, "", PC + cb + v + 1);
+		} else {
+			return format(fmt, (sign && v < 0) ? "-" : "", (v < 0) ? -v : v);
+		}
 	}
 
 	static void disasm(ubyte[] data, u16 offset = 0x0000) {
