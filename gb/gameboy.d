@@ -4,6 +4,10 @@ alias ubyte  u8;
 alias ushort u16;
 alias uint   u32;
 
+alias byte  s8;
+alias short s16;
+alias int   s32;
+
 /*macro print(arg) {
 	writefln(__FILE__, __LINE__, arg);
 }*/
@@ -386,9 +390,10 @@ End Sub
 				// Localización del registro ["B", "C", "D", "E", "H", "L", "(HL)", "A"];
 				switch (op) {
 					/* NOP */ case 0x00: break; // NOt Operation
-					/* DEC */ case 0x05: B--; break;
+					/* DEC */ case 0x05: HF = ((B - 1) & 0b1111) < (B & 0b1111); B--; ZF = (B == 0); NF = true; break;
 					/* LD  */ case 0x06: B = *cast(u8*)APC; break;
 					/* LD  */ case 0x0E: C = *cast(u8*)APC; break; // NOt Operation
+					/* JRNZ*/ case 0x20: if (NZ) *cast(s8*)APC; break;
 					/* LD  */ case 0x21: HL = *cast(u16*)APC; break;
 					/* LDD */ case 0x32: w8(*cast(u16*)APC, A); break;
 					/* AND */ case 0xA0: case 0xA1: case 0xA2: case 0xA3: case 0xA4: case 0xA5: case 0xA6: case 0xA7: // AND
