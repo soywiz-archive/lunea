@@ -1,4 +1,4 @@
-﻿import std.stdio, std.string, std.stream;
+﻿import std.stdio, std.string, std.stream, std.c.stdlib;
 
 alias ubyte  u8;
 alias ushort u16;
@@ -53,6 +53,8 @@ version = trace;
 	SP    -    -    Stack Pointer
 	PC    -    -    Program Counter/Pointer
 */
+
+extern(Windows) void Sleep(int);
 
 class GameBoy {
 	// 1 -> 4 cycles, 2 -> 8 cycles, 3 -> 12 cycles, 4 -> 16 cycles
@@ -195,6 +197,7 @@ class GameBoy {
 	RomHeader *rh;
 	// Memoria
 	u8 MEM[0x10000];
+	bool MEM_TRACED[0x10000];
 
 	// Registros
 	u8 A; u8 F;
@@ -219,7 +222,7 @@ class GameBoy {
 	bool IME;                    // Interrupt Master Enable Flag (Write Only)
 
 	// Utilitarios
-	u32 cycles; // Cantidad de ciclos * 1000 ejecutados
+	int cycles; // Cantidad de ciclos * 1000 ejecutados
 
 	bool sgb = false; // Emulacion de Super GameBoy
 
@@ -231,8 +234,8 @@ class GameBoy {
 	// Realiza el retraso pertinente
 	void sleep() {
 		static const uint ccyc = 0x400000, msec = 1;
-		if (cycles >= ccyc) {
-			//Sleep(msec);
+		while (cycles >= ccyc) {
+			Sleep(msec);
 			cycles -= ccyc;
 		}
 	}
@@ -243,25 +246,9 @@ class GameBoy {
 		s.readExact(MEM.ptr, 0x4000);
 		rh = cast(RomHeader *)(MEM.ptr + 0x100);
 		rom = s;
-	}
 
-/*
-Public Sub rl(ByRef reg8 As Long) 'Rotate left thru carry
-    temp_var = reg8 \ 128
-    reg8 = ((reg8 * 2) Or cf) And 255
-    setZ reg8 = 0
-    cf = temp_var
-    hf = 0
-    nf = 0
-End Sub
-Public Sub rlc(ByRef reg8 As Long) 'rotate left
-    cf = reg8 \ 128
-    reg8 = (reg8 * 2) And 255 Or cf
-    setZ reg8 = 0
-    hf = 0
-    nf = 0
-End Sub
-*/
+		//traceInstruction(0x020C, 20); exit(-1);
+	}
 
 	void RLC(u8*  r) { CF = ((*r >>  7) != 0); *r = (*r << 1) | CF; ZF = (*r == 0); HF = NF = false; }
 	void RLC(u16* r) { CF = ((*r >> 15) != 0); *r = (*r << 1) | CF; ZF = (*r == 0); HF = NF = false; }
@@ -292,13 +279,30 @@ End Sub
 	void SET(u8*  r) { }
 	void SET(u16* r) { }
 
-	void traceInstruction(int PC) {
-		u8* addr = MEM.ptr + PC;
-		writef("TRACE: ");
-		writef("%04X: ", PC);
-		writef("%s [", disasm(addr));
-		for (u8* p = MEM.ptr + PC; p < addr; p++) writef("%02X", *p);
-		writefln("]");
+	void DEC(ref u8 R) { // Decrementar
+		HF = ((R - 1) & 0xF) < (R & 0xF);
+		R--; ZF = (R == 0);
+		NF = true;
+	}
+
+	void CP(u8 V) { // Compare with A
+		CF = (A < V); // Carry Flag
+		HF = (A & 0xF) < (V & 0xF); // Half-Carry Flag
+		ZF = (A == V); // Zero Flag
+		NF = true; // Add-Sub flag
+	}
+
+	void traceInstruction(int PC, int count = 1) {
+		while (count > 0) {
+			u8* addr = MEM.ptr + PC;
+			writef("TRACE: ");
+			writef("%04X: ", PC);
+			writef("%s [", disasm(addr));
+			for (u8* p = MEM.ptr + PC; p < addr; p++) writef("%02X", *p);
+			writefln("]");
+			PC = addr - MEM.ptr;
+			count--;
+		}
 	}
 
 	void interrupt(u8 type) {
@@ -335,6 +339,13 @@ End Sub
 
 	// Interpreta una sucesión de opcodes
 	void interpret() {
+		void *APC;
+		u16 CPC;
+		u8 op;
+		void *reg_cb;
+		bool hl;
+		int ticks = 1024;
+
 		u8 *get_reg8(int r) {
 			switch (r) {
 				case 0: return &B; case 1: return &C; case 2: return &D; case 3: return &E;
@@ -343,26 +354,28 @@ End Sub
 			}
 		}
 
-//extern(C) typedef void (* void_int1)(int);
-//	void_int1 ptr = &test;
-
-		/*typedef void (* fu8p)(u8 *);
-		typedef void (* fu16p)(u16 *);
-
-		//void execute_reg(int r, void (*)(u8 *) *f8, void (*)(u8 *) *f16) {
-		void execute_reg(int r, fu8p *f8, fu16p *f16) {
-			bool hl; void *reg_cb = get_reg(r, hl);
-			//if (hl) f16(cast(u16*)reg_cb); else f8(cast(u8*)reg_cb);
-		}*/
+		u8  pu8 () { return *cast(u8 *)APC; }
+		s8  ps8 () { return *cast(s8 *)APC; }
+		u16 pu16() { return *cast(u16*)APC; }
+		s16 ps16() { return *cast(s16*)APC; }
 
 		while (true) {
-			u16 CPC = PC;
-			u8 op = MEM[PC++];
-			void *reg_cb = void;
-			bool hl = void;
+			CPC = PC;
+			op = MEM[PC++];
+			if (ticks-- <= 0) {
+				ticks = ticks.init;
+				sleep();
+			}
+
+			//writefln("%d", ticks);
 
 			// Trazamos la instrucción si corresponde
-			version(trace) traceInstruction(CPC);
+			version(trace) {
+				if (!MEM_TRACED[CPC]) {
+					traceInstruction(CPC);
+					MEM_TRACED[CPC] = true;
+				}
+			}
 
 			if (op == 0xCB) {
 				op = MEM[PC++];
@@ -384,44 +397,61 @@ End Sub
 
 				addCycles(opcycles_cb[op]);
 			} else {
-				void *APC = &MEM[PC];
+				APC = &MEM[PC];
 				PC += opargs[op];
+
+				addCycles(opcycles[op]);
 
 				// Localización del registro ["B", "C", "D", "E", "H", "L", "(HL)", "A"];
 				switch (op) {
-					/* NOP */ case 0x00: break; // NOt Operation
-					/* DEC */ case 0x05: HF = ((B - 1) & 0b1111) < (B & 0b1111); B--; ZF = (B == 0); NF = true; break;
-					/* LD  */ case 0x06: B = *cast(u8*)APC; break;
-					/* LD  */ case 0x0E: C = *cast(u8*)APC; break; // NOt Operation
-					/* JRNZ*/ case 0x20: if (NZ) *cast(s8*)APC; break;
-					/* LD  */ case 0x21: HL = *cast(u16*)APC; break;
-					/* LDD */ case 0x32: w8(*cast(u16*)APC, A); break;
-					/* AND */ case 0xA0: case 0xA1: case 0xA2: case 0xA3: case 0xA4: case 0xA5: case 0xA6: case 0xA7: // AND
+					case 0x00: break; // NOt Operation
+					case 0x05: DEC(B); break;
+					case 0x06: B = pu8; break;
+					case 0x0D: DEC(C); break;
+					case 0x0E: C = pu8; break; // NOt Operation
+					case 0x20:
+						if (!ZF) PC = PC + ps8;
+					break;
+					case 0x21: HL = pu16; break;
+					case 0x32: w8(pu16, A); break;
+					case 0x3E:
+						A = pu8;
+					break;
+					case 0xA0: case 0xA1: case 0xA2: case 0xA3: case 0xA4: case 0xA5: case 0xA6: case 0xA7: // AND
 						A &= ((op & 0b111) == 6) ? HL : *get_reg8(op & 0b111);
 						ZF = (A == 0);
 						CF = NF = false;
 						HF = true;
 					break;
-					/* XOR */ case 0xA8: case 0xA9: case 0xAA: case 0xAB: case 0xAC: case 0xAD: case 0xAE: case 0xAF: // XOR
+					case 0xA8: case 0xA9: case 0xAA: case 0xAB: case 0xAC: case 0xAD: case 0xAE: case 0xAF: // XOR
 						A ^= ((op & 0b111) == 6) ? HL : *get_reg8(op & 0b111);
 						ZF = (A == 0);
 						CF = HF = NF = false;
 					break;
-					/* OR  */ case 0xB0: // OR
+					case 0xB0: // OR
 						A |= ((op & 0b111) == 6) ? HL : *get_reg8(op & 0b111);
 						ZF = (A == 0);
 						CF = HF = NF = false;
 					break;
-					/* JP  */ case 0xC3: PC = *cast(u16*)APC; break;
-					/* DI  */ case 0xF3: IME = false; break; // Disable Interrupts
-					/* EI  */ case 0xFB: IME = true; break; // Enable Interrupts
+					case 0xC3: PC = pu16; break;
+					case 0xE0: // LD ($FF00+nn),A
+						w8(0xFF00 | pu8, A);
+					break;
+					case 0xF0: // LD A,($FF00+nn)
+						A = r8(0xFF00 | pu8);
+					break;
+					case 0xF3: IME = false; break; // IME=0 | Disable Interrupts
+					case 0xFB: IME = true ; break; // IME=1 | Enable Interrupts
+					case 0xFE: CP(pu8);     break; // CP nn | Compare with A
+/*setC A < val
+setH (A And 15) < (val And 15)
+setZ A = val
+nf = 1*/
 					default:
 						writefln("             \x18_____________________________ Instruction not emulated");
 						return;
 					break;
 				}
-
-				addCycles(opcycles[op]);
 			}
 		}
 	}
@@ -467,27 +497,41 @@ End Sub
 		MEM[0xFFFF] = 0x00; // IE
 	}
 
-	static void w8(u16 addr, u8 v) {
-		writefln("WRITE %04X <- %02X", addr, v);
+	u8 r8(u16 addr) {
+		scope(exit) MEM_TRACED[addr] = true;
+
+		if (!MEM_TRACED[addr]) {
+			writefln("READ %04X -> %02X", addr, MEM[addr]);
+		}
+
+		return MEM[addr];
+	}
+
+	void w8(u16 addr, u8 v) {
+		scope(exit) MEM_TRACED[addr] = true;
+
+		if (!MEM_TRACED[addr]) {
+			writefln("WRITE %04X <- %02X", addr, v);
+		}
+
 		switch (addr >> 12) {
 			case 0x0: case 0x1: case 0x2: case 0x3: // 0000-3FFF   16KB ROM Bank 00     (in cartridge, fixed at bank 00)
-				writefln("WRITE BANK 0");
+				if (!MEM_TRACED[addr]) writefln("WRITE BANK 0");
 			break;
 			case 0x4: case 0x5: case 0x6: case 0x7: // 4000-7FFF   16KB ROM Bank 01..NN (in cartridge, switchable bank number)
-				writefln("WRITE BANK NN");
+				if (!MEM_TRACED[addr]) writefln("WRITE BANK NN");
 			break;
 			case 0x8: case 0x9: // 8000-9FFF   8KB Video RAM (VRAM) (switchable bank 0-1 in CGB Mode)
-				writefln("WRITE VRAM");
+				if (!MEM_TRACED[addr]) writefln("WRITE VRAM");
 			break;
 			case 0xA: case 0xB: // A000-BFFF   8KB External RAM     (in cartridge, switchable bank, if any)
-				writefln("WRITE ERAM");
+				if (!MEM_TRACED[addr]) writefln("WRITE ERAM");
 			break;
-
 			case 0xC: // C000-CFFF   4KB Work RAM Bank 0 (WRAM)
-				writefln("WRITE WRAM 0");
+				if (!MEM_TRACED[addr]) writefln("WRITE WRAM 0");
 			break;
 			case 0xD: // D000-DFFF   4KB Work RAM Bank 1 (WRAM)  (switchable bank 1-7 in CGB Mode)
-				writefln("WRITE WRAM 1");
+				if (!MEM_TRACED[addr]) writefln("WRITE WRAM 1");
 			break;
 			// E000-FDFF   Same as C000-DDFF (ECHO)    (typically not used)
 			// FE00-FE9F   Sprite Attribute Table (OAM)
@@ -496,7 +540,7 @@ End Sub
 			// FF80-FFFE   High RAM (HRAM)
 			// FFFF        Interrupt Enable Register
 			case 0xE: case 0xF:
-				writefln("WRITE DMA");
+				if (!MEM_TRACED[addr]) writefln("WRITE DMA");
 				if (addr < 0xFE00) { // E000-FDFF   Same as C000-DDFF (ECHO)    (typically not used)
 				} else if (addr < 0xFEA0) { // FE00-FE9F   Sprite Attribute Table (OAM)
 					// OAM (memory at FE00h-FE9Fh) is accessable during Mode 0-1
