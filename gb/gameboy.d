@@ -193,10 +193,22 @@ class GameBoy {
 	u8 MEM[0x10000];
 
 	// Registros
-	union { u16 AF; u8 A_F[2]; } // ACUM, FLAGS
-	union { u16 BC; u8 B_C[2]; } // B, C
-	union { u16 DE; u8 D_E[2]; } // D, E
-	union { u16 HL; u8 H_L[2]; } // H, L
+	u8 A; u8 F;
+	u16 AF() { return *cast(u16*)&A; }
+	void AF(u16 v) { *cast(u16*)&A = v; }
+
+	u8 B; u8 C;
+	u16 BC() { return *cast(u16*)&B; }
+	void BC(u16 v) { *cast(u16*)&B = v; }
+
+	u8 D; u8 E;
+	u16 DE() { return *cast(u16*)&D; }
+	void DE(u16 v) { *cast(u16*)&D = v; }
+
+	u8 H; u8 L;
+	u16 HL() { return *cast(u16*)&H; }
+	void HL(u16 v) { *cast(u16*)&H = v; }
+
 	u16 SP;                      // Stack Pointer
 	u16 PC;                      // Program Counter
 	bool ZF, NF, HF, CF;         // Zero Flag, Add/Sub-Flag, Half Carry Flag, Carry Flag
@@ -319,40 +331,51 @@ End Sub
 
 	// Interpreta una sucesión de opcodes
 	void interpret() {
+		u8 *get_reg8(int r) {
+			switch (r) {
+				case 0: return &B; case 1: return &C; case 2: return &D; case 3: return &E;
+				case 4: return &H; case 5: return &L; case 7: return &A;
+				default: throw(new Exception("Unexpected error"));
+			}
+		}
+
+//extern(C) typedef void (* void_int1)(int);
+//	void_int1 ptr = &test;
+
+		/*typedef void (* fu8p)(u8 *);
+		typedef void (* fu16p)(u16 *);
+
+		//void execute_reg(int r, void (*)(u8 *) *f8, void (*)(u8 *) *f16) {
+		void execute_reg(int r, fu8p *f8, fu16p *f16) {
+			bool hl; void *reg_cb = get_reg(r, hl);
+			//if (hl) f16(cast(u16*)reg_cb); else f8(cast(u8*)reg_cb);
+		}*/
+
 		while (true) {
 			u16 CPC = PC;
 			u8 op = MEM[PC++];
+			void *reg_cb = void;
+			bool hl = void;
 
 			// Trazamos la instrucción si corresponde
 			version(trace) traceInstruction(CPC);
 
 			if (op == 0xCB) {
 				op = MEM[PC++];
-				bool hl = false;
-				void *reg_cb;
-
-				// Localización del registro ["B", "C", "D", "E", "H", "L", "(HL)", "A"];
-				switch (op & 0b111) {
-					/* B_C  */ case 0: reg_cb = &B_C[0]; break; case 1: reg_cb = &B_C[1]; break;
-					/* D_E  */ case 2: reg_cb = &D_E[0]; break; case 3: reg_cb = &D_E[1]; break;
-					/* H_L  */ case 4: reg_cb = &H_L[0]; break; case 5: reg_cb = &H_L[1]; break;
-					/* HL/A */ case 6: reg_cb = &HL; hl = true; break; case 7: reg_cb = &A_F[0]; break;
-					default: throw(new Exception("Unexpected error"));
-				}
-
+				//reg_cb = get_reg(op & 0b111, hl);
 				// Decodificación de la operación
 				switch (op & 0b11111000) {
-					/* RLC  */ case 0x00: hl ? RLC (cast(u16*)reg_cb) : RLC (cast(u8*)reg_cb); break;
-					/* RRC  */ case 0x08: hl ? RRC (cast(u16*)reg_cb) : RRC (cast(u8*)reg_cb); break;
-					/* RL   */ case 0x10: hl ? RL  (cast(u16*)reg_cb) : RL  (cast(u8*)reg_cb); break;
-					/* RR   */ case 0x18: hl ? RR  (cast(u16*)reg_cb) : RR  (cast(u8*)reg_cb); break;
-					/* SLA  */ case 0x20: hl ? SLA (cast(u16*)reg_cb) : SLA (cast(u8*)reg_cb); break;
-					/* SRA  */ case 0x28: hl ? SRA (cast(u16*)reg_cb) : SRA (cast(u8*)reg_cb); break;
-					/* SWAP */ case 0x30: hl ? SWAP(cast(u16*)reg_cb) : SWAP(cast(u8*)reg_cb); break;
-					/* SRL  */ case 0x38: hl ? SRL (cast(u16*)reg_cb) : SRL (cast(u8*)reg_cb); break;
-					/* BIT  */ case 0x40: hl ? BIT (cast(u16*)reg_cb) : BIT (cast(u8*)reg_cb); break;
-					/* RES  */ case 0x80: hl ? RES (cast(u16*)reg_cb) : RES (cast(u8*)reg_cb); break;
-					/* SET  */ case 0xC0: hl ? SET (cast(u16*)reg_cb) : SET (cast(u8*)reg_cb); break;
+					/* RLC  */ case 0x00: //hl ? RLC (cast(u16*)reg_cb) : RLC (cast(u8*)reg_cb); break;
+					/* RRC  */ case 0x08: //hl ? RRC (cast(u16*)reg_cb) : RRC (cast(u8*)reg_cb); break;
+					/* RL   */ case 0x10: //hl ? RL  (cast(u16*)reg_cb) : RL  (cast(u8*)reg_cb); break;
+					/* RR   */ case 0x18: //hl ? RR  (cast(u16*)reg_cb) : RR  (cast(u8*)reg_cb); break;
+					/* SLA  */ case 0x20: //hl ? SLA (cast(u16*)reg_cb) : SLA (cast(u8*)reg_cb); break;
+					/* SRA  */ case 0x28: //hl ? SRA (cast(u16*)reg_cb) : SRA (cast(u8*)reg_cb); break;
+					/* SWAP */ case 0x30: //hl ? SWAP(cast(u16*)reg_cb) : SWAP(cast(u8*)reg_cb); break;
+					/* SRL  */ case 0x38: //hl ? SRL (cast(u16*)reg_cb) : SRL (cast(u8*)reg_cb); break;
+					/* BIT  */ case 0x40: //hl ? BIT (cast(u16*)reg_cb) : BIT (cast(u8*)reg_cb); break;
+					/* RES  */ case 0x80: //hl ? RES (cast(u16*)reg_cb) : RES (cast(u8*)reg_cb); break;
+					/* SET  */ case 0xC0: //hl ? SET (cast(u16*)reg_cb) : SET (cast(u8*)reg_cb); break;
 				}
 
 				addCycles(opcycles_cb[op]);
@@ -360,12 +383,36 @@ End Sub
 				void *APC = &MEM[PC];
 				PC += opargs[op];
 
+				// Localización del registro ["B", "C", "D", "E", "H", "L", "(HL)", "A"];
 				switch (op) {
 					/* NOP */ case 0x00: break; // NOt Operation
-					/* JP  */ case 0xC3: PC = *cast(u16*)APC; break; // JumP
+					/* DEC */ case 0x05: B--; break;
+					/* LD  */ case 0x06: B = *cast(u8*)APC; break;
+					/* LD  */ case 0x0E: C = *cast(u8*)APC; break; // NOt Operation
+					/* LD  */ case 0x21: HL = *cast(u16*)APC; break;
+					/* LDD */ case 0x32: w8(*cast(u16*)APC, A); break;
+					/* AND */ case 0xA0: case 0xA1: case 0xA2: case 0xA3: case 0xA4: case 0xA5: case 0xA6: case 0xA7: // AND
+						A &= ((op & 0b111) == 6) ? HL : *get_reg8(op & 0b111);
+						ZF = (A == 0);
+						CF = NF = false;
+						HF = true;
+					break;
+					/* XOR */ case 0xA8: case 0xA9: case 0xAA: case 0xAB: case 0xAC: case 0xAD: case 0xAE: case 0xAF: // XOR
+						A ^= ((op & 0b111) == 6) ? HL : *get_reg8(op & 0b111);
+						ZF = (A == 0);
+						CF = HF = NF = false;
+					break;
+					/* OR  */ case 0xB0: // OR
+						A |= ((op & 0b111) == 6) ? HL : *get_reg8(op & 0b111);
+						ZF = (A == 0);
+						CF = HF = NF = false;
+					break;
+					/* JP  */ case 0xC3: PC = *cast(u16*)APC; break;
 					/* DI  */ case 0xF3: IME = false; break; // Disable Interrupts
-					/* EI  */ case 0xFB: IME = true ; break; // Enable Interrupts
+					/* EI  */ case 0xFB: IME = true; break; // Enable Interrupts
 					default:
+						writefln("             \x18_____________________________ Instruction not emulated");
+						return;
 					break;
 				}
 
@@ -416,24 +463,26 @@ End Sub
 	}
 
 	static void w8(u16 addr, u8 v) {
-		switch (addr & 0xF000) {
-			// 16KB ROM Bank 00     (in cartridge, fixed at bank 00)
-			case 0x0: case 0x1: case 0x2: case 0x3:
+		writefln("WRITE %04X <- %02X", addr, v);
+		switch (addr >> 12) {
+			case 0x0: case 0x1: case 0x2: case 0x3: // 0000-3FFF   16KB ROM Bank 00     (in cartridge, fixed at bank 00)
+				writefln("WRITE BANK 0");
 			break;
-			// 16KB ROM Bank 01..NN (in cartridge, switchable bank number)
-			case 0x4: case 0x5: case 0x6: case 0x7:
+			case 0x4: case 0x5: case 0x6: case 0x7: // 4000-7FFF   16KB ROM Bank 01..NN (in cartridge, switchable bank number)
+				writefln("WRITE BANK NN");
 			break;
-			// 8000-9FFF   8KB Video RAM (VRAM) (switchable bank 0-1 in CGB Mode)
-			case 0x8: case 0x9:
+			case 0x8: case 0x9: // 8000-9FFF   8KB Video RAM (VRAM) (switchable bank 0-1 in CGB Mode)
+				writefln("WRITE VRAM");
 			break;
-			// A000-BFFF   8KB External RAM     (in cartridge, switchable bank, if any)
-			case 0xA: case 0xB:
+			case 0xA: case 0xB: // A000-BFFF   8KB External RAM     (in cartridge, switchable bank, if any)
+				writefln("WRITE ERAM");
 			break;
-			// C000-CFFF   4KB Work RAM Bank 0 (WRAM)
-			case 0xC:
+
+			case 0xC: // C000-CFFF   4KB Work RAM Bank 0 (WRAM)
+				writefln("WRITE WRAM 0");
 			break;
-			// D000-DFFF   4KB Work RAM Bank 1 (WRAM)  (switchable bank 1-7 in CGB Mode)
-			case 0xD:
+			case 0xD: // D000-DFFF   4KB Work RAM Bank 1 (WRAM)  (switchable bank 1-7 in CGB Mode)
+				writefln("WRITE WRAM 1");
 			break;
 			// E000-FDFF   Same as C000-DDFF (ECHO)    (typically not used)
 			// FE00-FE9F   Sprite Attribute Table (OAM)
@@ -442,6 +491,7 @@ End Sub
 			// FF80-FFFE   High RAM (HRAM)
 			// FFFF        Interrupt Enable Register
 			case 0xE: case 0xF:
+				writefln("WRITE DMA");
 				if (addr < 0xFE00) { // E000-FDFF   Same as C000-DDFF (ECHO)    (typically not used)
 				} else if (addr < 0xFEA0) { // FE00-FE9F   Sprite Attribute Table (OAM)
 					// OAM (memory at FE00h-FE9Fh) is accessable during Mode 0-1
