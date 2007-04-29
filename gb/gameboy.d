@@ -73,38 +73,24 @@ class GameBoy {
 		u16 gchecksum;    // 014E-014F - Global Checksum (Produced by adding all bytes of the cartridge (except for the two checksum bytes))
 	}
 
-	// Stream
-	Stream rom;
-	// Header
-	RomHeader *rh;
+	Stream rom; // Stream
+	RomHeader *rh; // Header
 	// Memoria
 	u8 MEM[0x10000];
 	bool MEM_TRACED[0x10000];
 
 	// Registros
-	u8 A; u8 F;
-	u8 B; u8 C;
-	u8 D; u8 E;
-	u8 H; u8 L;
-	u16 SP; // Stack Pointer
-	u16 PC; // Program Counter
+	// Registros
+	union { u16 AF; struct { u8 A; u8 F; } }
+	union { u16 BC; struct { u8 B; u8 C; } }
+	union { u16 DE; struct { u8 D; u8 E; } }
+	union { u16 HL; struct { u8 H; u8 L; } }
+	u16 SP;  // Stack Pointer
+	u16 PC;  // Program Counter
 	u8  IME; // Interrupt Master Enable Flag (Write Only)
 
-	u16 AF() { return *cast(u16*)&A; }
-	void AF(u16 v) { *cast(u16*)&A = v; }
-
-	u16 BC() { return *cast(u16*)&B; }
-	void BC(u16 v) { *cast(u16*)&B = v; }
-
-	u16 DE() { return *cast(u16*)&D; }
-	void DE(u16 v) { *cast(u16*)&D = v; }
-
-	u16 HL() { return *cast(u16*)&H; }
-	void HL(u16 v) { *cast(u16*)&H = v; }
-
-
 	static const u8 CFMASK = 0b00010000;
-	bool CF() { return (F & ZFMASK) != 0; }
+	bool CF() { return (F & CFMASK) != 0; }
 	void CF(bool set) { if (set) F |= CFMASK; else F &= ~CFMASK; }
 
 	static const u8 HFMASK = 0b00100000;
@@ -126,6 +112,7 @@ class GameBoy {
 	int vbcycles; // Cantidad de ciclos de reloj usado para las scanlines
 
 	bool sgb = false; // Emulacion de Super GameBoy
+	bool cgb = false; // Emulación de GameBoy Color
 
 	// Añade ciclos para simular el retraso
 	void addCycles(int n) {
@@ -137,8 +124,8 @@ class GameBoy {
 		while (cycles >= ccyc) {
 			Sleep(msec);
 			cycles -= ccyc;
-		}	
-		
+		}
+
 		while (vbcycles >= 17564) {
 			incScanLine();
 			printf("%02X|", MEM[0xFF44]);
@@ -179,7 +166,7 @@ class GameBoy {
 		HF = false;
 		CF = false;
 	}
-	
+
 	u16 SWAP(u16 R) {
 		SWAP(cast(u8*)&R);
 		return R;
@@ -195,7 +182,7 @@ class GameBoy {
 	void RES(u16* r) { }
 	void SET(u8*  r) { }
 	void SET(u16* r) { }
-	
+
 	void ADD(ref u8 R) { // Add
 		HF = (((A & 0xF) + (R & 0xF)) >> 4) != 0;
 		NF = false;
@@ -216,7 +203,7 @@ class GameBoy {
 		ZF = (R == 0);
 		NF = false;
 	}
-	
+
 	u16 INC(u16 V) { // Incrementar
 		V++;
 		//HF = ((R & 0xF) == 0);
@@ -247,10 +234,10 @@ class GameBoy {
 			count--;
 		}
 	}
-	
+
 	/*
 		Un VBLANK se ejecuta 59.7 veces por segundo en la GB y 61.1 en SGB
-		Un scanline se ejecuta (59.7 / 154) 
+		Un scanline se ejecuta (59.7 / 154)
 	*/
 	void incScanLine() {
 		u8* scanline = &MEM[0xFF44];
@@ -258,10 +245,10 @@ class GameBoy {
 			FF44 - LY - LCDC Y-Coordinate (R)
 			The LY indicates the vertical line to which the present data is transferred
 			to the LCD Driver. The LY can take on any value between 0 through 153. The
-			values between 144 and 153 indicate the V-Blank period. Writing will reset the counter.		
+			values between 144 and 153 indicate the V-Blank period. Writing will reset the counter.
 		*/
-		*scanline = (*scanline + 1) % 154;		
-		
+		*scanline = (*scanline + 1) % 154;
+
 		// Si el scanline es 144, estamos ya en una línea offscreen y por tanto aprovechamos para generar
 		// la interrupción V-Blank
 		if (*scanline == 144) {
@@ -272,7 +259,7 @@ class GameBoy {
 	void interrupt(u8 type) {
 		u8 *IE = &MEM[0xFFFF]; // FFFF - IE - Interrupt Enable (R/W)
 		u8 *IF = &MEM[0xFF0F]; // FF0F - IF - Interrupt Flag (R/W)
-		
+
 		writefln("!!INTERRUPTION: %02X", type);
 
 		IME = false;
@@ -310,7 +297,7 @@ class GameBoy {
 		save.write(MEM);
 		save.close();
 	}
-	
+
 	void pushStack16(u16 v) {
 		SP -= 2;
 		w16(MEM.ptr, SP, v);
@@ -321,12 +308,12 @@ class GameBoy {
 		SP += 2;
 		return R;
 	}
-	
+
 	void CALL(u16 addr) {
 		pushStack16(PC);
 		PC = addr;
 	}
-	
+
 	// Interpreta una sucesión de opcodes
 	void interpret() {
 		void *APC;
@@ -396,11 +383,11 @@ class GameBoy {
 					///* SET  */ case 0xC0: //hl ? SET (cast(u16*)reg_cb) : SET (cast(u8*)reg_cb); break;
 					default:
 						writefln("             \x18_____________________________ Instruction not emulated");
-						return;					
+						return;
 					break;
 				}
 
-				addCycles(opcycles_cb[op]);				
+				addCycles(opcycles_cb[op]);
 			} else {
 				APC = &MEM[PC];
 				PC += opargs[op];
@@ -427,7 +414,7 @@ class GameBoy {
 						NF = false;
 					break;
 					case 0x20: if (!ZF) PC = PC + ps8; break; // JR NZ, PC+nn
-					
+
 					case 0x23: HL = INC(HL); break; // INC HL
 					case 0x2A: A  = r8 (MEM.ptr, HL); break; // LDI  A,(HL) ---- special (old ld hl,(nnnn))
 					case 0x2F: A = 255 - A; HF = true; NF = true; break; // Logical NOT
@@ -489,7 +476,7 @@ class GameBoy {
 					case 0xCD: // CALL nnnn
 						pushStack16(PC);
 						PC = pu16;
-					break; 
+					break;
 					case 0xD5: pushStack16(DE); break; // PUSH DE
 					case 0xE0: // LD ($FF00+nn),A
 						w8(MEM.ptr, 0xFF00 | pu8, A);
