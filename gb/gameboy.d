@@ -80,7 +80,6 @@ class GameBoy {
 	bool MEM_TRACED[0x10000];
 
 	// Registros
-	// Registros
 	union { u16 AF; struct { u8 A; u8 F; } }
 	union { u16 BC; struct { u8 B; u8 C; } }
 	union { u16 DE; struct { u8 D; u8 E; } }
@@ -108,7 +107,7 @@ class GameBoy {
 	//bool ZF, NF, HF, CF;         // Zero Flag, Add/Sub-Flag, Half Carry Flag, Carry Flag
 
 	// Utilitarios
-	int cycles; // Cantidad de ciclos * 1000 ejecutados
+	int cycles;   // Cantidad de ciclos * 1000 ejecutados
 	int vbcycles; // Cantidad de ciclos de reloj usado para las scanlines
 
 	bool sgb = false; // Emulacion de Super GameBoy
@@ -513,6 +512,265 @@ class GameBoy {
 					case 0xFB: IME = true ; break; // IME=1 | Enable Interrupts
 					case 0xFE: CP(pu8);     break; // CP nn | Compare with A
 					case 0xFF: CALL(0x38); break; // RST $38
+
+u8* addrr8(u8 r) {
+	switch (r & 0b111) {
+		case 0b000: return &B;
+		case 0b001: return &C;
+		case 0b010: return &D;
+		case 0b011: return &E;
+		case 0b100: return &H;
+		case 0b101: return &L;
+		case 0b110: return MEM + HL;
+		case 0b111: return &A;
+	}
+}
+
+u8 getr8(u8 r) { return *addrr8(r); }
+void setr8(u8 r, u8 v) { *addrr8(r) = v; }
+
+u16* addrr16(u8 r) {
+	switch (r & 0b11) {
+		case 0b000: return &BC;
+		case 0b001: return &DE;
+		case 0b010: return &HL;
+		case 0b011: return &SP;
+	}
+}
+
+u16 getr16(u8 r) { return *addrr16(r); }
+void setr16(u8 r, u16 v) { *addrr16(r) = v; }
+
+bool getflag(u8 r) {
+	switch (r & 0b11) {
+		case 0b000: return !ZF;
+		case 0b001: return  ZF;
+		case 0b010: return !CF;
+		case 0b011: return  CF;
+	}
+}
+
+// DEPRECATED
+u8 r1 = (op >> 0) & 0b111, r2 = (op >> 3) & 0b111;
+
+u8 r13 = (op >> 0) & 0b0111, r23 = (op >> 3) & 0b0111;
+u8 r24 = (op >> 0) & 0b1111, r22 = (op >> 4) & 0b0011;
+
+switch (op >> 6 & 0b11) {
+	case 0b00: {
+		switch (r13) {
+			case 0b000:
+				switch (r23) {
+					case 0b000: NOP();   break;
+					case 0b001: w16(r16, SP); break;
+					case 0b010: STOP();  break;
+					case 0b011: JR(pu8); break;
+					case 0b100: if (!ZF) JR(pu8); break;
+					case 0b101: if ( ZF) JR(pu8); break;
+					case 0b110: if (!CF) JR(pu8); break;
+					case 0b111: if ( CF) JR(pu8); break;
+				}
+			break;
+			case 0b001: case 0b011: {
+				u8 r16 = (op >> 4) & 0b11;
+				switch (op & 0b1111) {
+					case 0b0001: setr16(r16, pu16); break;
+					case 0b0011: INC(addrr16(r16)); break;
+					case 0b1001: ADDHL(getrr16(r16)); break;
+					case 0b1011: DEC(addrr16(r16)); break;
+				}
+			} break;
+			case 0b010: { // A <- (r16), (r16) <- A
+				u16 v16 = (r2 & 0b100) ? HL : getr16(r2 & 0b11);
+				if (r2 & 0b1) A = r8(v16); else w8(v16, A);
+				if (r2 & 0b100) { if (r2 & 0b1) DEC(HL); else INC(HL); }
+			} break;
+			case 0b100: INC(addrr8(r2)); break; // INC
+			case 0b101: DEC(addrr8(r2)); break; // DEC
+			case 0b110: setr8(r2, pu8);  break; // LD, nn
+			case 0b111:
+				switch (r2) {
+					case 0b000: RLCA(); break;
+					case 0b001: RRCA(); break;
+					case 0b010: RLA (); break;
+					case 0b011: RRA (); break;
+					case 0b100: DAA (); break;
+					case 0b101: CPL (); break;
+					case 0b110: SCF (); break;
+					case 0b111: CCF (); break;
+				}
+			break;
+		}
+	} break;
+	case 0b01: { // LD REG, REG -- REG <- REG
+		if (op == 0x76) { // HALT (LD (HL), (HL))
+			stderr.writefln("HALT");
+		} else {
+			setr8(r2, getr8(r1);
+		}
+	} break;
+	case 0b10: { // OP A, REG
+		switch (r2) {
+			case 0b000: ADD(r1); break;
+			case 0b001: ADC(r1); break;
+			case 0b010: SUB(r1); break;
+			case 0b011: SBC(r1); break;
+			case 0b100: AND(r1); break;
+			case 0b101: XOR(r1); break;
+			case 0b110: OR (r1); break;
+			case 0b111: CP (r1); break;
+		}
+	} break;
+	case 0b11: {
+		if (op == 0xCB) { // MULTIBYTE
+		} else {
+			switch (r1) {
+				case 0b000:
+					if (r2 & 1) {
+						switch (r2 >> 1) {
+							case 0b00: w8(0xFF00 | pu8, A);  break; // LD ($FF00 + nn), A // special (old ret po)
+							case 0b01: ADDSP(ps8);           break; // ADD SP, dd // special (old ret pe) (nocash extended as shortint)
+							case 0b10: A = r8(0xFF00 | pu8); break; // LD A, ($FF00 + nn) // special (old ret p)
+							case 0b11:
+								HL = SP + ps8;
+								// TODO: SET FLAGS
+							break;
+						}
+					} else {
+						if (getflag()) RET();
+					}
+				break;
+				case 0b001:
+					if (r2 & 1) {
+						POP16(addrr16(r2 >> 1));
+					} else {
+					}
+				break;
+				case 0b010: break;
+				case 0b011: break;
+				case 0b100: break;
+				case 0b101: break;
+				case 0b110: break;
+				case 0b111: RST(r2 << 3); break;
+				default:
+				break;
+			}
+
+			/*switch (op) {
+				case 0xC0: if (!ZF) RET();         break;  // RET NZ
+				case 0xC1: BC = pop16();           break;  // POP BC
+				case 0xC2: if (!ZF) JP(pu16);      break;  // JP NZ, nnnn
+				case 0xC3: PC = pu16;              break;  // JP nnnn
+				case 0xC4: if (!ZF) CALL(pu16);    break;  // CALL NZ, nnnn
+				case 0xC5: push16(BC);             break;  // PUSH BC
+				case 0xC6: ADD(pu8);               break;  // ADD A, nn
+				case 0xC7: RST(0);                 break;  // ADD A, nn
+			}*/
+		}
+	} break;
+}
+
+
+/*
+Case &HC6     ' ADD  A,nn
+add pb
+
+Case &HC9 'RET
+ret
+Case &HCA     ' JP     'Z,nnnn
+jp pw, zf
+Case &HCC     ' CALL Z,nnnn
+zcall pw, zf
+Case &HCD     ' CALL nnnn
+zcall pw
+Case &HCE     ' ADC  A,nn
+adc pb
+
+Case &HD1     ' POP  DE
+pop E
+pop D
+Case &HD2     ' JP     'NC,nnnn
+jp pw, 1 - cf
+Case &HD3     ' -     '     '     '     '     '  ---- ??? (old out (nn),a)
+'Stop
+Case &HD4     ' CALL NC,nnnn
+zcall pw, 1 - cf
+Case &HD5     ' PUSH DE
+push D
+push E
+Case &HD6     ' SUB  nn
+zsub pb
+
+Case &HD9     ' RETI     '     '     '     '  ---- remapped (old exx)
+reti
+Case &HDA     ' JP     'C,nnnn
+jp pw, cf
+Case &HDB     ' -     '     '     '     '     '  ---- ??? (old in a,(nn))
+'Stop
+Case &HDC     ' CALL C,nnnn
+zcall pw, cf
+Case &HDD     ' -     '     '     '     '     '  ---- ??? (old ix-commands)
+'Stop
+Case &HDE     ' SBC  A,nn     '  (nocash added, this opcode does existed, e.g. used by kwirk)
+sbc pb
+
+Case &HE1     ' POP  HL
+pop L
+pop H
+Case &HE2     ' LD     '($FF00+C),A  ---- special (old jp po,nnnn)
+WriteM 65280 Or c, A
+Case &HE3     ' -     '     '     '     '     '  ---- ??? (old ex (sp),hl)
+'Stop
+Case &HE4     ' -     '     '     '     '     '  ---- ??? (old call po,nnnn)
+'Stop
+Case &HE5     ' PUSH HL
+push H
+push L
+Case &HE6     ' AND  nn
+zand pb
+
+Case &HE9 'JP(HL)
+jp H * 256 Or L
+Case &HEA     ' LD     '(nnnn),A     '  ---- special (old jp pe,nnnn)
+WriteM pw, A
+Case &HEB     ' -     '     '     '     '     '  ---- ??? (old ex de,hl)
+'Stop
+Case &HEC     ' -     '     '     '     '     '  ---- ??? (old call pe,nnnn)
+'Stop
+Case &HED     ' -     '     '     '     '     '  ---- ??? (old ed-commands)
+'Stop
+Case &HEE     ' XOR  nn
+zxor pb
+
+Case &HF1     ' POP  AF
+pop temp
+setF CByte(temp)
+pop A
+Case &HF2     ' LD     'A,(C)     '     '  ---- special (old jp p,nnnn)
+A = readM(65280 Or c)
+Case &HF3 'DI
+ime_stat = 2
+Case &HF4     ' -     '     '     '     '     '  ---- ??? (old call p,nnnn)
+'Stop
+Case &HF5     ' PUSH AF
+push A
+push getF
+Case &HF6     ' OR     'nn
+zor pb
+
+Case &HF9     ' LD     'SP,HL
+SP = H * 256 Or L
+Case &HFA     ' LD     'A,(nnnn)     '  ---- special (old jp m,nnnn)
+A = readM(pw)
+Case &HFB 'EI
+ime_stat = 1
+Case &HFC     ' -     '     '     '     '     '  ---- ??? (old call m,nnnn)
+'Stop
+Case &HFD     ' -     '     '     '     '     '  ---- ??? (old iy-commands)
+'Stop
+Case &HFE     ' CP     'nn
+cp pb
+*/
 					default:
 						writefln("             \x18_____________________________ Instruction not emulated");
 						return;

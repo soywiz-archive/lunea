@@ -5,13 +5,17 @@ import gameboy.common;
 
 bool MEM_TRACED[0x10000];
 
+u8* addr8(u8 *MEM, u16 addr) {
+	return &MEM[addr];
+}
+
 // Lectura de 8 bits en memoria
 u8 r8(u8 *MEM, u16 addr) {
 	scope(exit) {
 		if (!MEM_TRACED[addr]) writefln("----------");
 		MEM_TRACED[addr] = true;
 	}
-	
+
 	if (!MEM_TRACED[addr]) writefln("----------");
 
 	if (!MEM_TRACED[addr])
@@ -27,7 +31,7 @@ u8 r16(u8 *MEM, u16 addr) {
 		if (!MEM_TRACED[addr]) writefln("----------");
 		MEM_TRACED[addr] = true;
 	}
-	
+
 	if (!MEM_TRACED[addr]) writefln("----------");
 
 	if (!MEM_TRACED[addr])
@@ -45,8 +49,8 @@ void w16(u8 *MEM, u16 addr, u16 v) {
 	}
 
 	if (!MEM_TRACED[addr]) writefln("----------");
-	if (!MEM_TRACED[addr]) writefln("WRITE %04X <- %04X", addr, v);	
-	
+	if (!MEM_TRACED[addr]) writefln("WRITE %04X <- %04X", addr, v);
+
 	*cast(u16 *)(MEM + addr) = v;
 }
 
@@ -306,7 +310,7 @@ void w8(u8 *MEM, u16 addr, u8 v) {
 						  Bit 6   - Counter/consecutive selection (Read/Write)
 						            (1=Stop output when length in NR21 expires)
 						  Bit 2-0 - Frequency's higher 3 bits (x) (Write Only)
-							Frequency = 131072/(2048-x) Hz					
+							Frequency = 131072/(2048-x) Hz
 						*/
 					break;
 				// SOUND (Sound Channel 3 - Wave Output)
