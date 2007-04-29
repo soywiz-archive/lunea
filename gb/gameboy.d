@@ -143,81 +143,6 @@ class GameBoy {
 		//traceInstruction(0x020C, 20); exit(-1);
 	}
 
-	void RLC(u8*  r) { CF = ((*r >>  7) != 0); *r = (*r << 1) | (CF <<  0); ZF = (*r == 0); HF = false; NF = false; }
-	void RLC(u16* r) { CF = ((*r >> 15) != 0); *r = (*r << 1) | (CF <<  0); ZF = (*r == 0); HF = false; NF = false; }
-	void RRC(u8*  r) { CF = ((*r &   1) != 0); *r = (*r >> 1) | (CF <<  7); ZF = (*r == 0); HF = false; NF = false; }
-	void RRC(u16* r) { CF = ((*r &   1) != 0); *r = (*r >> 1) | (CF << 15); ZF = (*r == 0); HF = false; NF = false; }
-
-	void RL(u8*  r) { }
-	void RL(u16* r) { }
-	void RR(u8*  r) { }
-	void RR(u16* r) { }
-
-	void SLA(u8*  r) { }
-	void SLA(u16* r) { }
-	void SRA(u8*  r) { }
-	void SRA(u16* r) { }
-
-	void SWAP(u8*  R) {
-		*R = (*R >> 4) | (*R << 4);
-		ZF = (*R == 0);
-		NF = false;
-		HF = false;
-		CF = false;
-	}
-
-	u16 SWAP(u16 R) {
-		SWAP(cast(u8*)&R);
-		return R;
-	}
-
-	void SRL(u8*  r) { }
-	void SRL(u16* r) { }
-
-	void BIT(u8*  r) { }
-	void BIT(u16* r) { }
-
-	void RES(u8*  r) { }
-	void RES(u16* r) { }
-	void SET(u8*  r) { }
-	void SET(u16* r) { }
-
-	void ADD(ref u8 R) { // Add
-		HF = (((A & 0xF) + (R & 0xF)) >> 4) != 0;
-		NF = false;
-		ZF = (R == 0);
-		R  = (A + R) & 0xFF;
-		CF = ((R & 0x80) != 0);
-	}
-
-	void DEC(ref u8 R) { // Decrementar
-		HF = ((R - 1) & 0xF) < (R & 0xF);
-		R--; ZF = (R == 0);
-		NF = true;
-	}
-
-	void INC(ref u8 R) { // Incrementar
-		R++;
-		HF = ((R & 0xF) == 0);
-		ZF = (R == 0);
-		NF = false;
-	}
-
-	u16 INC(u16 V) { // Incrementar
-		V++;
-		//HF = ((R & 0xF) == 0);
-		//ZF = (R == 0);
-		//NF = false;
-		return V;
-	}
-
-	void CP(u8 V) { // Compare with A
-		CF = (A < V); // Carry Flag
-		HF = (A & 0xF) < (V & 0xF); // Half-Carry Flag
-		ZF = (A == V); // Zero Flag
-		NF = true; // Add-Sub flag
-	}
-
 	void traceInstruction(int PC, int count = 1) {
 		while (count > 0) {
 			u8* addr = MEM.ptr + PC;
@@ -322,25 +247,47 @@ class GameBoy {
 		bool hl;
 		bool showinst;
 
-		u8 *get_reg8(int r) {
-			switch (r) {
-				case 0: return &B; case 1: return &C; case 2: return &D; case 3: return &E;
-				case 4: return &H; case 5: return &L; case 7: return &A;
-				default: throw(new Exception("Unexpected error"));
+		u8* addrr8(u8 r) {
+			switch (r & 0b111) {
+				case 0b000: return &B;
+				case 0b001: return &C;
+				case 0b010: return &D;
+				case 0b011: return &E;
+				case 0b100: return &H;
+				case 0b101: return &L;
+				case 0b110: return &MEM[HL];
+				case 0b111: return &A;
 			}
 		}
 
-		u8  pu8 () { return *cast(u8 *)APC; }
-		s8  ps8 () { return *cast(s8 *)APC; }
-		u16 pu16() { return *cast(u16*)APC; }
-		s16 ps16() { return *cast(s16*)APC; }
+		u16* addrr16(u8 r) {
+			switch (r & 0b11) {
+				case 0b000: return &BC;
+				case 0b001: return &DE;
+				case 0b010: return &HL;
+				case 0b011: return &SP;
+			}
+		}
+
+		bool getflag(u8 r) {
+			switch (r & 0b11) {
+				case 0b000: return !ZF;
+				case 0b001: return  ZF;
+				case 0b010: return !CF;
+				case 0b011: return  CF;
+			}
+		}
+
+		u8 getr8(u8 r) { return *addrr8(r); }
+		void setr8(u8 r, u8 v) { *addrr8(r) = v; }
+		u16 getr16(u8 r) { return *addrr16(r); }
+		void setr16(u8 r, u16 v) { *addrr16(r) = v; }
+
+
+		u8  pu8 () { return *cast(u8 *)APC; } s8  ps8 () { return *cast(s8 *)APC; }
+		u16 pu16() { return *cast(u16*)APC; } s16 ps16() { return *cast(s16*)APC; }
 
 		while (true) {
-			/*if (PC == 0x0237) {
-				dump();
-				exit(-1);
-			}*/
-
 			CPC = PC;
 			op = MEM[PC++];
 
@@ -358,429 +305,183 @@ class GameBoy {
 				}
 			}
 
-			if (op == 0xCB) {
-				op = MEM[PC++];
-				//reg_cb = get_reg(op & 0b111, hl);
-				// Decodificación de la operación
-				switch (op & 0b11111000) {
-					///* RLC  */ case 0x00: //hl ? RLC (cast(u16*)reg_cb) : RLC (cast(u8*)reg_cb); break;
-					///* RRC  */ case 0x08: //hl ? RRC (cast(u16*)reg_cb) : RRC (cast(u8*)reg_cb); break;
-					///* RL   */ case 0x10: //hl ? RL  (cast(u16*)reg_cb) : RL  (cast(u8*)reg_cb); break;
-					///* RR   */ case 0x18: //hl ? RR  (cast(u16*)reg_cb) : RR  (cast(u8*)reg_cb); break;
-					///* SLA  */ case 0x20: //hl ? SLA (cast(u16*)reg_cb) : SLA (cast(u8*)reg_cb); break;
-					///* SRA  */ case 0x28: //hl ? SRA (cast(u16*)reg_cb) : SRA (cast(u8*)reg_cb); break;
-					case 0x30: // SWAP
-						if ((op & 0b111) == 6) {
-							HL = SWAP(HL);
-						} else {
-							SWAP(get_reg8(op & 0b111));
-						}
-					break;
-					///* SRL  */ case 0x38: //hl ? SRL (cast(u16*)reg_cb) : SRL (cast(u8*)reg_cb); break;
-					///* BIT  */ case 0x40: //hl ? BIT (cast(u16*)reg_cb) : BIT (cast(u8*)reg_cb); break;
-					///* RES  */ case 0x80: //hl ? RES (cast(u16*)reg_cb) : RES (cast(u8*)reg_cb); break;
-					///* SET  */ case 0xC0: //hl ? SET (cast(u16*)reg_cb) : SET (cast(u8*)reg_cb); break;
-					default:
-						writefln("             \x18_____________________________ Instruction not emulated");
-						return;
-					break;
-				}
+			// DEPRECATED
+			u8 r1 = (op >> 0) & 0b111, r2 = (op >> 3) & 0b111;
 
-				addCycles(opcycles_cb[op]);
-			} else {
-				APC = &MEM[PC];
-				PC += opargs[op];
+			u8 r13 = (op >> 0) & 0b0111, r23 = (op >> 3) & 0b0111;
+			u8 r14 = (op >> 0) & 0b1111, r22 = (op >> 4) & 0b0011;
 
-				int RPC = PC;
+			// Los dos bits mas significativos del primer byte indican el tipo de instrucción
+			switch (op >> 6 & 0b11) {
+				case 0b00: {
+					switch (r13) {
+						case 0b000:
+							switch (r23) {
+								case 0b000: NOP();   break;
+								case 0b001: w16(MEM.ptr, pu16, SP); break;
+								case 0b010: STOP();  break;
+								case 0b011: JR(pu8); break;
+								case 0b100: if (!ZF) JR(pu8); break;
+								case 0b101: if ( ZF) JR(pu8); break;
+								case 0b110: if (!CF) JR(pu8); break;
+								case 0b111: if ( CF) JR(pu8); break;
+							}
+						break;
+						case 0b001: case 0b011: {
+							u8 r16 = (op >> 4) & 0b11;
+							switch (op & 0b1111) {
+								case 0b0001: setr16(r16, pu16); break;
+								case 0b0011: INC(addrr16(r16)); break;
+								case 0b1001: ADDHL(getr16(r16)); break;
+								case 0b1011: DEC(addrr16(r16)); break;
+							}
+						} break;
+						case 0b010: { // A <- (r16), (r16) <- A
+							u16 v16 = (r2 & 0b100) ? HL : getr16(r2 & 0b11);
+							if (r2 & 0b1) A = r8(MEM.ptr, v16); else w8(MEM.ptr, v16, A);
+							if (r2 & 0b100) { if (r2 & 0b1) DEC(HL); else INC(HL); }
+						} break;
+						case 0b100: INC(addrr8(r2)); break; // INC
+						case 0b101: DEC(addrr8(r2)); break; // DEC
+						case 0b110: setr8(r2, pu8);  break; // LD, nn
+						case 0b111:
+							switch (r2) {
+								case 0b000: RLCA(); break;
+								case 0b001: RRCA(); break;
+								case 0b010: RLA (); break;
+								case 0b011: RRA (); break;
+								case 0b100: DAA (); break;
+								case 0b101: CPL (); break;
+								case 0b110: SCF (); break;
+								case 0b111: CCF (); break;
+							}
+						break;
+					}
+				} break;
+				case 0b01: { // LD REG, REG -- REG <- REG
+					if (op == 0x76) { // HALT (LD (HL), (HL))
+						writefln("HALT");
+					} else {
+						setr8(r2, getr8(r1));
+					}
+				} break;
+				case 0b10: { // OP A, REG
+					switch (r2) {
+						case 0b000: ADD(r1); break;
+						case 0b001: ADC(r1); break;
+						case 0b010: SUB(r1); break;
+						case 0b011: SBC(r1); break;
+						case 0b100: AND(r1); break;
+						case 0b101: XOR(r1); break;
+						case 0b110: OR (r1); break;
+						case 0b111: CP (r1); break;
+					}
+				} break;
+				case 0b11: {
+					if (op == 0xCB) { // MULTIBYTE
+						u8 op2 = MEM[PC++];
+						u8* r8 = addrr8(op2 & 0b111);
+						u8 bit = ((op2 >> 3) & 0b111);
 
-				addCycles(opcycles[op]);
-
-				// Localización del registro ["B", "C", "D", "E", "H", "L", "(HL)", "A"];
-				switch (op) {
-					case 0x00:            break; // NOP - NOt Operation
-					case 0x01: BC = pu16; break; // LD BC, nnnn
-					case 0x05: DEC(B);    break; // DEC B
-					case 0x06: B = pu8;   break; // LD B, nn
-					case 0x0B: BC = BC - 1;   break; // DEC BC
-					case 0x0C: INC(C);    break; // INC C
-					case 0x0D: DEC(C);    break; // DEC C
-					case 0x0E: C = pu8;   break; // LD C, nn
-					case 0x16: D = pu8;   break; // LD D, nn
-					case 0x19: // ADD HL, DE
-						CF = ((HL + DE) < HL);
-						HF = ((HL & 0xFFF) + (DE & 0xFFF)) > 0xFFF;
-						HL = HL + DE;
-						NF = false;
-					break;
-					case 0x20: if (!ZF) PC = PC + ps8; break; // JR NZ, PC+nn
-
-					case 0x23: HL = INC(HL); break; // INC HL
-					case 0x2A: A  = r8 (MEM.ptr, HL); break; // LDI  A,(HL) ---- special (old ld hl,(nnnn))
-					case 0x2F: A = 255 - A; HF = true; NF = true; break; // Logical NOT
-					/*
-					//case 0x28: case 0x29: case 0x2A: case 0x2B: case 0x2C: case 0x2D: case 0x2E: case 0x2F: // SRA R
-						if ((op & 0b111) == 6) {
-							CF = (HL & 1) != 0;
-							HL = HL >> 1;
-						} else {
-							u8* R = get_reg8(op & 0b111);
-							CF = (*R & 1) != 0;
-							*R = *R >> 1;
-						}
-						ZF = (*get_reg8(op & 0b111) == 0);
-						HF = false;
-						NF = false;
-					break;
-					*/
-					case 0x21: HL = pu16; break; // LD HL, nnnn
-					case 0x31: SP = pu16; break; // LD sp, nnnn
-					case 0x32: w8(MEM.ptr, pu16, A); break; // LDD (nnnnn), A
-					case 0x36: HL = pu8; break; // LD (HL), nn
-					case 0x3E: A = pu8;  break; // LD A, nn
-					case 0x47: B = A;    break; // LD B, A
-					case 0x4F: C = A;    break; // LD C, A
-					case 0x56: D = r8(MEM.ptr, HL); break; // LD D, HL
-					case 0x57: D = A;    break; // LD D, A
-					case 0x5E: E = r8(MEM.ptr, HL); break; // LD E, (HL)
-					case 0x5F: E = A;    break; // LD E, A
-					case 0x78: A = B;    break; // LD A, B
-					case 0x79: A = C;    break; // LD A, C
-					case 0x87: ADD(A);   break; // ADD A, A
-					case 0xA0: case 0xA1: case 0xA2: case 0xA3: case 0xA4: case 0xA5: case 0xA6: case 0xA7: // AND R
-						A &= ((op & 0b111) == 6) ? HL : *get_reg8(op & 0b111);
-						ZF = (A == 0);
-						CF = false;
-						NF = false;
-						HF = true;
-					break;
-					case 0xA8: case 0xA9: case 0xAA: case 0xAB: case 0xAC: case 0xAD: case 0xAE: case 0xAF: // XOR R
-						A ^= ((op & 0b111) == 6) ? HL : *get_reg8(op & 0b111);
-						ZF = (A == 0);
-						CF = false;
-						NF = false;
-						HF = false;
-					break;
-					case 0xB0: case 0xB1: case 0xB2: case 0xB3: case 0xB4: case 0xB5: case 0xB6: case 0xB7: // OR R
-						A |= ((op & 0b111) == 6) ? HL : *get_reg8(op & 0b111);
-						ZF = (A == 0);
-						CF = false;
-						NF = false;
-						HF = false;
-					break;
-					case 0xC3: PC = pu16; break;
-					case 0xC9: // RET
-						PC = *cast(u16 *)(MEM.ptr + SP);
-						SP += 2;
-					break;
-					case 0xCD: // CALL nnnn
-						pushStack16(PC);
-						PC = pu16;
-					break;
-					case 0xD5: pushStack16(DE); break; // PUSH DE
-					case 0xE0: // LD ($FF00+nn),A
-						w8(MEM.ptr, 0xFF00 | pu8, A);
-					break;
-					case 0xE1: // POP HL
-						HL = popStack16();
-					break;
-					case 0xE2: // LD ($FF00+C),A  ---- special (old jp po,nnnn)
-						w8(MEM.ptr, 0xFF00 | C, A);
-					break;
-					case 0xE6: // AND nn
-						A &= pu8;
-						ZF = (A == 0);
-						NF = false;
-						CF = false;
-						HF = true;
-					break;
-					case 0xE9: PC = HL; break; // JP HL
-					case 0xEA: w8(MEM.ptr, pu16, A); break; // LD (nnnn), A  ---- special (old jp pe,nnnn)
-					case 0xEF: // RST $28
-						/*
-						Jump Vectors in First ROM Bank
-						The following addresses are supposed to be used as jump vectors:
-
-						0000,0008,0010,0018,0020,0028,0030,0038   for RST commands
-						0040,0048,0050,0058,0060                  for Interrupts
-						*/
-						CALL(0x28);
-					break;
-					case 0xF0: // LD A,($FF00+nn)
-						A = r8(MEM.ptr, 0xFF00 | pu8);
-					break;
-					case 0xF3: IME = false; break; // IME=0 | Disable Interrupts
-					case 0xFB: IME = true ; break; // IME=1 | Enable Interrupts
-					case 0xFE: CP(pu8);     break; // CP nn | Compare with A
-					case 0xFF: CALL(0x38); break; // RST $38
-
-u8* addrr8(u8 r) {
-	switch (r & 0b111) {
-		case 0b000: return &B;
-		case 0b001: return &C;
-		case 0b010: return &D;
-		case 0b011: return &E;
-		case 0b100: return &H;
-		case 0b101: return &L;
-		case 0b110: return MEM + HL;
-		case 0b111: return &A;
-	}
-}
-
-u8 getr8(u8 r) { return *addrr8(r); }
-void setr8(u8 r, u8 v) { *addrr8(r) = v; }
-
-u16* addrr16(u8 r) {
-	switch (r & 0b11) {
-		case 0b000: return &BC;
-		case 0b001: return &DE;
-		case 0b010: return &HL;
-		case 0b011: return &SP;
-	}
-}
-
-u16 getr16(u8 r) { return *addrr16(r); }
-void setr16(u8 r, u16 v) { *addrr16(r) = v; }
-
-bool getflag(u8 r) {
-	switch (r & 0b11) {
-		case 0b000: return !ZF;
-		case 0b001: return  ZF;
-		case 0b010: return !CF;
-		case 0b011: return  CF;
-	}
-}
-
-// DEPRECATED
-u8 r1 = (op >> 0) & 0b111, r2 = (op >> 3) & 0b111;
-
-u8 r13 = (op >> 0) & 0b0111, r23 = (op >> 3) & 0b0111;
-u8 r24 = (op >> 0) & 0b1111, r22 = (op >> 4) & 0b0011;
-
-switch (op >> 6 & 0b11) {
-	case 0b00: {
-		switch (r13) {
-			case 0b000:
-				switch (r23) {
-					case 0b000: NOP();   break;
-					case 0b001: w16(r16, SP); break;
-					case 0b010: STOP();  break;
-					case 0b011: JR(pu8); break;
-					case 0b100: if (!ZF) JR(pu8); break;
-					case 0b101: if ( ZF) JR(pu8); break;
-					case 0b110: if (!CF) JR(pu8); break;
-					case 0b111: if ( CF) JR(pu8); break;
-				}
-			break;
-			case 0b001: case 0b011: {
-				u8 r16 = (op >> 4) & 0b11;
-				switch (op & 0b1111) {
-					case 0b0001: setr16(r16, pu16); break;
-					case 0b0011: INC(addrr16(r16)); break;
-					case 0b1001: ADDHL(getrr16(r16)); break;
-					case 0b1011: DEC(addrr16(r16)); break;
-				}
-			} break;
-			case 0b010: { // A <- (r16), (r16) <- A
-				u16 v16 = (r2 & 0b100) ? HL : getr16(r2 & 0b11);
-				if (r2 & 0b1) A = r8(v16); else w8(v16, A);
-				if (r2 & 0b100) { if (r2 & 0b1) DEC(HL); else INC(HL); }
-			} break;
-			case 0b100: INC(addrr8(r2)); break; // INC
-			case 0b101: DEC(addrr8(r2)); break; // DEC
-			case 0b110: setr8(r2, pu8);  break; // LD, nn
-			case 0b111:
-				switch (r2) {
-					case 0b000: RLCA(); break;
-					case 0b001: RRCA(); break;
-					case 0b010: RLA (); break;
-					case 0b011: RRA (); break;
-					case 0b100: DAA (); break;
-					case 0b101: CPL (); break;
-					case 0b110: SCF (); break;
-					case 0b111: CCF (); break;
-				}
-			break;
-		}
-	} break;
-	case 0b01: { // LD REG, REG -- REG <- REG
-		if (op == 0x76) { // HALT (LD (HL), (HL))
-			stderr.writefln("HALT");
-		} else {
-			setr8(r2, getr8(r1);
-		}
-	} break;
-	case 0b10: { // OP A, REG
-		switch (r2) {
-			case 0b000: ADD(r1); break;
-			case 0b001: ADC(r1); break;
-			case 0b010: SUB(r1); break;
-			case 0b011: SBC(r1); break;
-			case 0b100: AND(r1); break;
-			case 0b101: XOR(r1); break;
-			case 0b110: OR (r1); break;
-			case 0b111: CP (r1); break;
-		}
-	} break;
-	case 0b11: {
-		if (op == 0xCB) { // MULTIBYTE
-		} else {
-			switch (r1) {
-				case 0b000:
-					if (r2 & 1) {
-						switch (r2 >> 1) {
-							case 0b00: w8(0xFF00 | pu8, A);  break; // LD ($FF00 + nn), A // special (old ret po)
-							case 0b01: ADDSP(ps8);           break; // ADD SP, dd // special (old ret pe) (nocash extended as shortint)
-							case 0b10: A = r8(0xFF00 | pu8); break; // LD A, ($FF00 + nn) // special (old ret p)
-							case 0b11:
-								HL = SP + ps8;
-								// TODO: SET FLAGS
+						switch (op2 >> 6) {
+							case 0b00:
+								switch ((op2 >> 3) & 0b111) {
+									case 0b000: RLC (r8); break;
+									case 0b001: RRC (r8); break;
+									case 0b010: RL  (r8); break;
+									case 0b011: RR  (r8); break;
+									case 0b100: SLA (r8); break;
+									case 0b101: SRA (r8); break;
+									case 0b110: SWAP(r8); break;
+									case 0b111: SRL (r8); break;
+								}
 							break;
+							case 0b01: BIT(bit, r8); break;
+							case 0b10: RES(bit, r8); break;
+							case 0b11: SET(bit, r8); break;
 						}
 					} else {
-						if (getflag()) RET();
+						switch (r14) {
+							case 0b0000: if (getflag(r22)) RET(); break;
+							case 0b1000:
+								switch (r22) {
+									case 0b00: w8(MEM.ptr, 0xFF00 | pu8, A);  break; // LD ($FF00 + nn), A // special (old ret po)
+									case 0b01: ADDSP(ps8); break; // ADD SP, dd // special (old ret pe) (nocash extended as shortint)
+									case 0b10: A = r8(MEM.ptr, 0xFF00 | pu8); break; // LD A, ($FF00 + nn) // special (old ret p)
+									case 0b11: // TODO: SET FLAGS
+										HL = SP + ps8;
+									break;
+								}
+							break;
+							case 0b0001: POP16(addrr16(r22)); break;
+							case 0b1001:
+								switch (r23) {
+									case 0b001: RET(); break;
+									case 0b011: RETI(); break;
+									case 0b101: JP(HL); break;
+									case 0b111: SP = HL; break;
+								}
+							break;
+							case 0b0010: case 0b1010:
+								switch (r23) {
+									case 0b000: case 0b001: case 0b010: case 0b011:
+										if (getflag(r22)) JP(pu16);
+									break;
+									case 0b100: w8(MEM.ptr, 0xFF00 | C, A); break;
+									case 0b101: w8(MEM.ptr, pu16, A); break;
+									case 0b110: A = r8(MEM.ptr, 0xFF00 | C); break;
+									case 0b111: A = r8(MEM.ptr, pu16); break;
+								}
+							break;
+							case 0b0011:
+								JP(pu16);
+							break;
+							case 0b1011:
+								switch (r23) {
+									case 0b110: DI(); break; // DI
+									case 0b111: EI(); break; // EI
+								}
+							break;
+							case 0b0100: case 0b1100:
+								if (!(r23 & 0b100)) {
+									if (getflag(r22)) CALL(pu16);
+								} else {
+									// -
+								}
+							break;
+							case 0b0101: case 0b1101:
+								switch (r23) {
+									case 0b000: PUSH16(BC); break;
+									case 0b001: CALL(pu16); break;
+									case 0b010: PUSH16(DE); break;
+									case 0b011: break;
+									case 0b100: PUSH16(HL); break;
+									case 0b101: break;
+									case 0b110: PUSH16(AF); break;
+									case 0b111: break;
+								}
+							break;
+							case 0b0110: case 0b1110: // ALU nn
+								switch (r23) {
+									case 0b000: ADD(pu8); break;
+									case 0b001: ADC(pu8); break;
+									case 0b010: SUB(pu8); break;
+									case 0b011: SBC(pu8); break;
+									case 0b100: AND(pu8); break;
+									case 0b101: XOR(pu8); break;
+									case 0b110: OR (pu8); break;
+									case 0b111: CP (pu8); break;
+								}
+							break;
+							case 0b0111: case 0b1111: RST(r2 << 3); break;
+						}
 					}
-				break;
-				case 0b001:
-					if (r2 & 1) {
-						POP16(addrr16(r2 >> 1));
-					} else {
-					}
-				break;
-				case 0b010: break;
-				case 0b011: break;
-				case 0b100: break;
-				case 0b101: break;
-				case 0b110: break;
-				case 0b111: RST(r2 << 3); break;
-				default:
-				break;
+				} break;
 			}
 
-			/*switch (op) {
-				case 0xC0: if (!ZF) RET();         break;  // RET NZ
-				case 0xC1: BC = pop16();           break;  // POP BC
-				case 0xC2: if (!ZF) JP(pu16);      break;  // JP NZ, nnnn
-				case 0xC3: PC = pu16;              break;  // JP nnnn
-				case 0xC4: if (!ZF) CALL(pu16);    break;  // CALL NZ, nnnn
-				case 0xC5: push16(BC);             break;  // PUSH BC
-				case 0xC6: ADD(pu8);               break;  // ADD A, nn
-				case 0xC7: RST(0);                 break;  // ADD A, nn
-			}*/
-		}
-	} break;
-}
-
-
-/*
-Case &HC6     ' ADD  A,nn
-add pb
-
-Case &HC9 'RET
-ret
-Case &HCA     ' JP     'Z,nnnn
-jp pw, zf
-Case &HCC     ' CALL Z,nnnn
-zcall pw, zf
-Case &HCD     ' CALL nnnn
-zcall pw
-Case &HCE     ' ADC  A,nn
-adc pb
-
-Case &HD1     ' POP  DE
-pop E
-pop D
-Case &HD2     ' JP     'NC,nnnn
-jp pw, 1 - cf
-Case &HD3     ' -     '     '     '     '     '  ---- ??? (old out (nn),a)
-'Stop
-Case &HD4     ' CALL NC,nnnn
-zcall pw, 1 - cf
-Case &HD5     ' PUSH DE
-push D
-push E
-Case &HD6     ' SUB  nn
-zsub pb
-
-Case &HD9     ' RETI     '     '     '     '  ---- remapped (old exx)
-reti
-Case &HDA     ' JP     'C,nnnn
-jp pw, cf
-Case &HDB     ' -     '     '     '     '     '  ---- ??? (old in a,(nn))
-'Stop
-Case &HDC     ' CALL C,nnnn
-zcall pw, cf
-Case &HDD     ' -     '     '     '     '     '  ---- ??? (old ix-commands)
-'Stop
-Case &HDE     ' SBC  A,nn     '  (nocash added, this opcode does existed, e.g. used by kwirk)
-sbc pb
-
-Case &HE1     ' POP  HL
-pop L
-pop H
-Case &HE2     ' LD     '($FF00+C),A  ---- special (old jp po,nnnn)
-WriteM 65280 Or c, A
-Case &HE3     ' -     '     '     '     '     '  ---- ??? (old ex (sp),hl)
-'Stop
-Case &HE4     ' -     '     '     '     '     '  ---- ??? (old call po,nnnn)
-'Stop
-Case &HE5     ' PUSH HL
-push H
-push L
-Case &HE6     ' AND  nn
-zand pb
-
-Case &HE9 'JP(HL)
-jp H * 256 Or L
-Case &HEA     ' LD     '(nnnn),A     '  ---- special (old jp pe,nnnn)
-WriteM pw, A
-Case &HEB     ' -     '     '     '     '     '  ---- ??? (old ex de,hl)
-'Stop
-Case &HEC     ' -     '     '     '     '     '  ---- ??? (old call pe,nnnn)
-'Stop
-Case &HED     ' -     '     '     '     '     '  ---- ??? (old ed-commands)
-'Stop
-Case &HEE     ' XOR  nn
-zxor pb
-
-Case &HF1     ' POP  AF
-pop temp
-setF CByte(temp)
-pop A
-Case &HF2     ' LD     'A,(C)     '     '  ---- special (old jp p,nnnn)
-A = readM(65280 Or c)
-Case &HF3 'DI
-ime_stat = 2
-Case &HF4     ' -     '     '     '     '     '  ---- ??? (old call p,nnnn)
-'Stop
-Case &HF5     ' PUSH AF
-push A
-push getF
-Case &HF6     ' OR     'nn
-zor pb
-
-Case &HF9     ' LD     'SP,HL
-SP = H * 256 Or L
-Case &HFA     ' LD     'A,(nnnn)     '  ---- special (old jp m,nnnn)
-A = readM(pw)
-Case &HFB 'EI
-ime_stat = 1
-Case &HFC     ' -     '     '     '     '     '  ---- ??? (old call m,nnnn)
-'Stop
-Case &HFD     ' -     '     '     '     '     '  ---- ??? (old iy-commands)
-'Stop
-Case &HFE     ' CP     'nn
-cp pb
-*/
-					default:
-						writefln("             \x18_____________________________ Instruction not emulated");
-						return;
-					break;
-				}
-
-				version(trace) {
-					if (showinst && PC != RPC) {
-						writefln("-----------------------------------");
-					}
+			version(trace) {
+				if (showinst && PC != RPC) {
+					writefln("-----------------------------------");
 				}
 			}
 		}
@@ -873,6 +574,10 @@ cp pb
 			foreach (c; data[baddr - data.ptr..addr - data.ptr]) writef("%02X", c);
 			writefln("]");
 		}
+	}
+
+	// INSTRUCCIONES
+	void NOP() {
 	}
 }
 
