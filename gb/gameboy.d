@@ -104,6 +104,19 @@ class GameBoy {
 	bool ZF() { return (F & ZFMASK) != 0; }
 	void ZF(bool set) { if (set) F |= ZFMASK; else F &= ~ZFMASK; }
 
+	void RegDump() {
+		writefln(
+			"AF:%04X " "BC:%04X "
+			"DE:%04X " "HL:%04X "
+			"| SP:%04X " "| PC:%04X " "| IME:%02X | "
+			"C%d " "H%d "
+			"N%d " "Z%d ",
+			AF, BC, DE, HL,
+			SP, PC, IME,
+			CF, HF, NF, ZF
+		);
+	}
+
 	//bool ZF, NF, HF, CF;         // Zero Flag, Add/Sub-Flag, Half Carry Flag, Carry Flag
 
 	// Utilitarios
@@ -222,22 +235,6 @@ class GameBoy {
 		save.close();
 	}
 
-	void pushStack16(u16 v) {
-		SP -= 2;
-		w16(MEM.ptr, SP, v);
-	}
-
-	u16 popStack16() {
-		u16 R = r16(MEM.ptr, SP);
-		SP += 2;
-		return R;
-	}
-
-	void CALL(u16 addr) {
-		pushStack16(PC);
-		PC = addr;
-	}
-
 	// Interpreta una sucesión de opcodes
 	void interpret() {
 		void *APC;
@@ -247,49 +244,47 @@ class GameBoy {
 		bool hl;
 		bool showinst;
 
+		// Decodificar registros
 		u8* addrr8(u8 r) {
 			switch (r & 0b111) {
-				case 0b000: return &B;
-				case 0b001: return &C;
-				case 0b010: return &D;
-				case 0b011: return &E;
-				case 0b100: return &H;
-				case 0b101: return &L;
-				case 0b110: return &MEM[HL];
-				case 0b111: return &A;
+				case 0b000: return &B; case 0b001: return &C;
+				case 0b010: return &D; case 0b011: return &E;
+				case 0b100: return &H; case 0b101: return &L;
+				case 0b110: return &MEM[HL]; case 0b111: return &A;
 			}
 		}
 
 		u16* addrr16(u8 r) {
 			switch (r & 0b11) {
-				case 0b000: return &BC;
-				case 0b001: return &DE;
-				case 0b010: return &HL;
-				case 0b011: return &SP;
+				case 0b000: return &BC; case 0b001: return &DE;
+				case 0b010: return &HL; case 0b011: return &SP;
 			}
 		}
 
 		bool getflag(u8 r) {
 			switch (r & 0b11) {
-				case 0b000: return !ZF;
-				case 0b001: return  ZF;
-				case 0b010: return !CF;
-				case 0b011: return  CF;
+				case 0b000: return !ZF; case 0b001: return ZF;
+				case 0b010: return !CF; case 0b011: return CF;
 			}
 		}
 
-		u8 getr8(u8 r) { return *addrr8(r); }
-		void setr8(u8 r, u8 v) { *addrr8(r) = v; }
-		u16 getr16(u8 r) { return *addrr16(r); }
-		void setr16(u8 r, u16 v) { *addrr16(r) = v; }
+		u8   getr8 (u8 r       ) { return *addrr8(r);  }
+		void setr8 (u8 r, u8  v) { *addrr8(r) = v;     }
+		u16  getr16(u8 r       ) { return *addrr16(r); }
+		void setr16(u8 r, u16 v) { *addrr16(r) = v;    }
 
-
+		// Leer parámetros
 		u8  pu8 () { return *cast(u8 *)APC; } s8  ps8 () { return *cast(s8 *)APC; }
 		u16 pu16() { return *cast(u16*)APC; } s16 ps16() { return *cast(s16*)APC; }
 
+		// Bucle principal
 		while (true) {
 			CPC = PC;
+
+			// Decodificamos la instrucción
 			op = MEM[PC++];
+
+			APC = &MEM[PC];
 
 			// Trazamos la instrucción si corresponde
 			version(trace) {
@@ -320,11 +315,11 @@ class GameBoy {
 								case 0b000: NOP();   break;
 								case 0b001: w16(MEM.ptr, pu16, SP); break;
 								case 0b010: STOP();  break;
-								case 0b011: JR(pu8); break;
-								case 0b100: if (!ZF) JR(pu8); break;
-								case 0b101: if ( ZF) JR(pu8); break;
-								case 0b110: if (!CF) JR(pu8); break;
-								case 0b111: if ( CF) JR(pu8); break;
+								case 0b011: JR(ps8); break;
+								case 0b100: if (!ZF) JR(ps8); break;
+								case 0b101: if ( ZF) JR(ps8); break;
+								case 0b110: if (!CF) JR(ps8); break;
+								case 0b111: if ( CF) JR(ps8); break;
 							}
 						break;
 						case 0b001: case 0b011: {
@@ -339,7 +334,7 @@ class GameBoy {
 						case 0b010: { // A <- (r16), (r16) <- A
 							u16 v16 = (r2 & 0b100) ? HL : getr16(r2 & 0b11);
 							if (r2 & 0b1) A = r8(MEM.ptr, v16); else w8(MEM.ptr, v16, A);
-							if (r2 & 0b100) { if (r2 & 0b1) DEC(HL); else INC(HL); }
+							if (r2 & 0b100) { if (r2 & 0b1) DEC(&HL); else INC(&HL); }
 						} break;
 						case 0b100: INC(addrr8(r2)); break; // INC
 						case 0b101: DEC(addrr8(r2)); break; // DEC
@@ -433,6 +428,7 @@ class GameBoy {
 									case 0b111: A = r8(MEM.ptr, pu16); break;
 								}
 							break;
+							// C3 - 11-00-0011
 							case 0b0011:
 								JP(pu16);
 							break;
@@ -477,15 +473,13 @@ class GameBoy {
 						}
 					}
 				} break;
-			}
+			} // switch
 
-			version(trace) {
-				if (showinst && PC != RPC) {
-					writefln("-----------------------------------");
-				}
+			if (showinst) {
+				RegDump();
 			}
-		}
-	}
+		} // while
+	} // function
 
 	// Inicializamos la emulación
 	void init() {
@@ -579,6 +573,96 @@ class GameBoy {
 	// INSTRUCCIONES
 	void NOP() {
 	}
+
+	void STOP() {
+	}
+
+	void JR(s8 disp) { PC += disp; }
+
+	void INC(u8*  r) { (*r)++; }
+	void INC(u16* r) { (*r)++; }
+	void DEC(u8*  r) { (*r)--; }
+	void DEC(u16* r) { (*r)--; }
+
+	void ADD(u8  v) { A += v; }
+	void ADD(u16 v) { A += v; }
+	void ADC(u8  v) { A += v; }
+	void ADC(u16 v) { A += v; }
+
+	void SUB(u8  v) { A -= v; }
+	void SUB(u16 v) { A -= v; }
+	void SBC(u8  v) { A -= v; }
+	void SBC(u16 v) { A -= v; }
+
+	void AND(u8 v) { A &= v; }
+	void OR (u8 v) { A |= v; }
+	void XOR(u8 v) { A ^= v; }
+	void CP (u8 v) { }
+
+	void ADDHL(u8  v) { HL += v; }
+	void ADDHL(u16 v) { HL += v; }
+
+	void ADDSP(s8  v) { SP += v; }
+	void ADDSP(s16 v) { SP += v; }
+
+	void RLC (u8 *r) { }
+	void RRC (u8 *r) { }
+	void RL  (u8 *r) { }
+	void RR  (u8 *r) { }
+	void SLA (u8 *r) { }
+	void SRA (u8 *r) { }
+	void SWAP(u8 *r) { }
+	void SRL (u8 *r) { }
+
+	void BIT(u8 bit, u8 *r) { A = (*r & (1 << bit)); }
+	void RES(u8 bit, u8 *r) { *r &= ~(1 << bit); }
+	void SET(u8 bit, u8 *r) { *r |=  (1 << bit); }
+
+	void PUSH16(u16 v) { *cast(u16*)(&MEM[SP]) = v; SP -= 2; }
+	void POP16(u16 *r) { *r = *cast(u16*)(&MEM[SP]); }
+
+	void RLCA() { }
+	void RRCA() { }
+	void RLA () { }
+	void RRA () { }
+	void DAA () { }
+	void CPL () { }
+	void SCF () { }
+	void CCF () { }
+
+	void RET() { }
+	void RETI() { }
+
+	void JP(u16 addr) { PC = addr; }
+	void DI() { }
+	void EI() { }
+
+	void CALL(u16 addr) {
+		PUSH16(PC);
+		JP(addr);
+	}
+
+	void RST(u8 v) {
+		CALL(v);
+	}
+
+	/*
+	void pushStack16(u16 v) {
+		SP -= 2;
+		w16(MEM.ptr, SP, v);
+	}
+
+	u16 popStack16() {
+		u16 R = r16(MEM.ptr, SP);
+		SP += 2;
+		return R;
+	}
+
+	void CALL(u16 addr) {
+		pushStack16(PC);
+		PC = addr;
+	}
+	*/
 }
 
 int main(char[][] args) {
