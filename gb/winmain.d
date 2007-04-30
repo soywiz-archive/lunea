@@ -72,7 +72,7 @@ class GBWinSDL : GameboyHostSystem {
 			default: case 0: {
 				for (int y = 0; y < 144; y++) {
 					for (int x = 0; x < 160; x+= 4) {
-						u8 v = LCDSCR[x + y * 160];
+						u8 v = LCDSCR[(x >> 2) + y * 40];
 						(cast(u32*)buffer.pixels)[x + 0 + y * 160] = getc((v >> 0) & 0b11);
 						(cast(u32*)buffer.pixels)[x + 1 + y * 160] = getc((v >> 2) & 0b11);
 						(cast(u32*)buffer.pixels)[x + 2 + y * 160] = getc((v >> 4) & 0b11);

@@ -28,6 +28,10 @@ void MEMTRACE(int addr, char[] s, bool critical = false) {
 	}*/
 
 	// FE00-FE9F   Sprite Attribute Table (OAM)
+
+	if (addr >= 0x8000 && addr <= 0x9000) {
+		//writefln("******* %s *******", s);
+	}
 }
 
 u8* addr8(u8 *MEM, u16 addr) {
@@ -37,11 +41,11 @@ u8* addr8(u8 *MEM, u16 addr) {
 // Lectura de 8 bits en memoria
 u8 r8(u8 *MEM, u16 addr) {
 	scope(exit) {
-		MEMTRACE(addr, "----------");
+		//MEMTRACE(addr, "----------");
 		MEM_TRACED[addr] = true;
 	}
 
-	MEMTRACE(addr, "----------");
+	//MEMTRACE(addr, "----------");
 
 	MEMTRACE(addr, format("READ %04X -> %02X", addr, MEM[addr]));
 
@@ -55,11 +59,11 @@ u8 r8(u8 *MEM, u16 addr) {
 // Lectura de 16 bits en memoria
 u16 r16(u8 *MEM, u16 addr) {
 	scope(exit) {
-		MEMTRACE(addr, "----------");
+		//MEMTRACE(addr, "----------");
 		MEM_TRACED[addr] = true;
 	}
 
-	MEMTRACE(addr, "----------");
+	//MEMTRACE(addr, "----------");
 
 	MEMTRACE(addr, format("READ %04X -> %02X", addr, MEM[addr]));
 
@@ -69,11 +73,11 @@ u16 r16(u8 *MEM, u16 addr) {
 // Escritura de 8 bits en memoria
 void w16(u8 *MEM, u16 addr, u16 v) {
 	scope(exit) {
-		MEMTRACE(addr, "----------");
+		//MEMTRACE(addr, "----------");
 		MEM_TRACED[addr] = true;
 	}
 
-	MEMTRACE(addr, "----------");
+	//MEMTRACE(addr, "----------");
 	MEMTRACE(addr, format("WRITE %04X <- %04X", addr, v));
 
 	*cast(u16 *)(MEM + addr) = v;
@@ -82,11 +86,11 @@ void w16(u8 *MEM, u16 addr, u16 v) {
 // Escritura de 8 bits en memoria
 void w8(u8 *MEM, u16 addr, u8 v) {
 	scope(exit) {
-		MEMTRACE(addr, "----------");
+		//MEMTRACE(addr, "----------");
 		MEM_TRACED[addr] = true;
 	}
 
-	MEMTRACE(addr, "----------");
+	//MEMTRACE(addr, "----------");
 
 	MEMTRACE(addr, format("WRITE %04X <- %02X (%08b)", addr, v, v));
 

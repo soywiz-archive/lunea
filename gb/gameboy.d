@@ -54,6 +54,28 @@ interface GameboyHostSystem {
 	void KeepAlive();
 }
 
+void PutPixel(u8 *bmp, int px, int py, u8 c) {
+	if (px < 0 || px >= 160 || py < 0 || py >= 144) return;
+	u8* b = &bmp[py * 40 + px / 4]; c &= 0b11;
+	switch (px % 4) {
+		case 0b00: *b = (*b & 0b11111100) | (c << 0); break;
+		case 0b01: *b = (*b & 0b11110011) | (c << 2); break;
+		case 0b10: *b = (*b & 0b11001111) | (c << 4); break;
+		case 0b11: *b = (*b & 0b00111111) | (c << 6); break;
+	}
+}
+
+void DrawTile(u8 *bmp, u16* tile, u8 pal, int px, int py, bool trans = false, bool xflip = false, bool yflip = false) {
+	//for (int n = 0; n < 16; n++) writef("%02X ", tile[n]); writefln();
+	for (int y = 0; y < 8; y++) {
+		u16 v = tile[y];
+		for (int x = 0; x < 8; x++) {
+			PutPixel(bmp, px + 8 - x, py + y, ((v >> x) & 0b1));
+			//PutPixel(bmp, px + x, py + y, ((v >> x) & 0b1) | ((v >> 7 >> x) & 0b10));
+		}
+	}
+}
+
 class GameBoy {
 	align(1) struct RomHeader {
 		u8  entry[0x4];   // 0100-0103 - Entry Point
@@ -72,6 +94,8 @@ class GameBoy {
 		u8  hchecksum;    // 014D      - Header Checksum (x=0:FOR i=0134h TO 014Ch:x=x-MEM[i]-1:NEXT)
 		u16 gchecksum;    // 014E-014F - Global Checksum (Produced by adding all bytes of the cartridge (except for the two checksum bytes))
 	}
+
+	u8 LCDIMG[0x1680];
 
 	GameboyHostSystem ghs;
 	Stream rom; // Stream
@@ -127,13 +151,13 @@ class GameBoy {
 
 	void RegDump() {
 		writefln(
-			"AF:%04X " "BC:%04X "
+			"PC:[%04X] | " "AF:%04X " "BC:%04X "
 			"DE:%04X " "HL:%04X "
-			"| SP:%04X " "| PC:%04X " "| IME:%02X | "
+			"| SP:%04X " "| IME:%02X | "
 			"Z%d " "N%d "
 			"H%d " "C%d ",
-			AF, BC, DE, HL,
-			SP, PC, IME,
+			PC, AF, BC, DE,
+			HL, SP, IME,
 			ZF, NF, HF, CF
 		);
 		writefln("STACK {");
@@ -265,7 +289,19 @@ class GameBoy {
 		// Si el scanline es 144, estamos ya en una línea offscreen y por tanto aprovechamos para generar
 		// la interrupción V-Blank
 		if (*scanline == 144) {
-			ghs.UpdateScreen(0, MEM.ptr);
+			for (int y = 0, n = 0; y < 18; y++) {
+				for (int x = 0; x < 20; x++, n++) {
+					u8 tile = MEM[0x9800 + y * 0x20 + x];
+					DrawTile(LCDIMG.ptr, cast(u16*)&MEM[0x8000 + tile * 0x10], 0, x * 8, y * 8);
+					//DrawTile(LCDIMG.ptr, cast(u16 *)&MEM[0x8000 + tile * 0x10], 0, x * 8, y * 8);
+					//DrawTile(LCDIMG.ptr, &MEM[0x8000 + n * 0x10], 0, x * 8, y * 8);
+					//writef("%02X", tile);
+				}
+				//writefln();
+			}
+			//writefln();
+
+			ghs.UpdateScreen(0, LCDIMG.ptr);
 			interrupt(0x40);
 		}
 	}
@@ -407,7 +443,8 @@ class GameBoy {
 			if (PC == 0x386) { RegDump(); dump(); exit(-1); }
 			*/
 			//if (PC == 0x37F) { RegDump(); dump(); exit(-1); }
-			//if (PC == 0x386) { RegDump(); dump(); exit(-1); }
+
+			//if (PC == 0x27D0) { writefln("Copia de TILES"); RegDump(); dump(); exit(-1); }
 
 			// Decodificamos la instrucción
 			op = MEM[PC++];
@@ -500,7 +537,7 @@ class GameBoy {
 									00 100 010 - 22 - LDI (HL), A
 									00 101 010 - 2A - LDI A, (HL)
 									00 110 010 - 32 - LDD (HL), A
-									00 111 010 - 3A - LDI A, (HL)
+									00 111 010 - 3A - LDD A, (HL)
 								*/
 								//writefln("OP(%02X): %08b", op, op);
 								// 00 XXX 010
@@ -515,7 +552,7 @@ class GameBoy {
 									TRACE(format("LD A, [%04X]", v16));
 									A = r8(MEM.ptr, v16);
 								}
-								if (r2 & 0b100) { if (!(r2 & 0b1)) { TRACE(format("INC HL")); INC(&HL); } else { TRACE(format("DEC HL")); DEC(&HL); } }
+								if (r2 & 0b100) { if (!(r23 & 0b10)) { TRACE(format("INC HL")); INC(&HL); } else { TRACE(format("DEC HL")); DEC(&HL); } }
 							} break;
 							case 0b100: TRACE(format("INC r%d", r2)); { u8 v = getr8(r2); INC(&v); setr8(r2, v); } break; // INC
 							case 0b101: TRACE(format("DEC r%d", r2)); { u8 v = getr8(r2); DEC(&v); setr8(r2, v); }  break; // DEC
