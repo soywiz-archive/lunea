@@ -38,8 +38,6 @@ u8 r8(u8 *MEM, u16 addr) {
 
 	MEMTRACE(addr, format("READ %04X -> %02X", addr, MEM[addr]));
 
-	writefln("READ: %04X", addr);
-
 	return MEM[addr];
 }
 

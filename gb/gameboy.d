@@ -1,5 +1,6 @@
 ﻿module gameboy.z80;
 
+import SDL, std.c.windows.windows;
 import std.stdio, std.string, std.stream, std.c.stdlib, std.zlib, std.system;
 import gameboy.tables, gameboy.memory;
 
@@ -158,7 +159,8 @@ class GameBoy {
 		}*/
 
 		while (cycles >= ccyc) {
-			//Sleep(msec);
+			Sleep(msec);
+			GameUpdate();
 			cycles -= ccyc;
 		}
 
@@ -803,14 +805,99 @@ void doit() {
 	Application.run(myForm);
 }*/
 
-int main(char[][] args) {
-	//doit();
+extern (C) {
+    char*   getenv  (char *);
+    int     putenv  (char *);
+}
 
-	if (true) {
-		GameBoy gb = new GameBoy;
+void GameUpdate() {
+	SDL_Event event;
+
+	while (SDL_PollEvent(&event)) {
+		switch (event.type) {
+			case SDL_QUIT:
+				exit(-1);
+			break;
+			case SDL_MOUSEBUTTONDOWN:
+			case SDL_MOUSEBUTTONUP:
+			break;
+			case SDL_KEYDOWN:
+			case SDL_KEYUP:
+				if (event.key.keysym.sym == SDLK_ESCAPE) {
+					exit(-1);
+				}
+			break;
+			default:
+			break;
+		}
+	}
+
+	UpdateScreen();
+}
+
+import std.c.stdio, std.c.string;
+
+void UpdateScreen() {
+	SDL_Rect drect, srect;
+	drect.x = drect.y = 0;
+	drect.w = 160 * 2;
+	drect.h = 144 * 2;
+	srect.x = srect.y = 0;
+	srect.w = 160 * 1;
+	srect.h = 144 * 1;
+	memcpy(
+		buffer.pixels,
+		gb.MEM.ptr,
+		160 * 144 * 4
+	);
+	//SDL_UpdateRect(buffer, 0, 0, 160, 144);
+	//SDL_BlitSurface(buffer, &srect, screen, &drect);
+	SDL_LockSurface(screen);
+	u32* src = cast(u32*)buffer.pixels, dst = cast(u32*)screen.pixels;
+	for (int y = 0; y < 144; y++) {
+		for (int x = 0; x < 160; x++) {
+			if (x * 2 >= screen.w) continue;
+			if (y * 2 >= screen.h) continue;
+
+			u32 c = src[x + y * 160];
+
+			int pos = x * 2 + y * screen.w * 2;
+
+			dst[pos + 1] = dst[pos] = c;
+			dst[pos + 1 + screen.w] = dst[pos + screen.w] = c;
+		}
+	}
+	SDL_UnlockSurface(screen);
+	SDL_UpdateRect(screen, 0, 0, 160 * 2, 144 * 2);
+}
+
+SDL_Surface* buffer;
+SDL_Surface* screen;
+
+GameBoy gb;
+
+int main(char[][] args) {
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) throw(new Exception("Unable to initialize SDL"));
+
+	putenv("SDL_VIDEO_WINDOW_POS=center");
+	putenv("SDL_VIDEO_CENTERED=1");
+
+	SDL_WM_SetCaption("GameBoy", null);
+	if ((screen = SDL_SetVideoMode(160 * 2, 144 * 2, 32, SDL_HWSURFACE | SDL_DOUBLEBUF)) is null) throw(new Exception("Unable to create SDL_Screen"));
+
+	buffer = SDL_CreateRGBSurface(SDL_SWSURFACE, 160, 144, 32, 0xFF000000, 0x00FF0000, 0x0000FF00, 0x000000FF);
+
+	SDL_Cursor *cursor = SDL_GetCursor();
+	cursor.wm_cursor.curs = cast(void *)LoadCursorA(null, IDC_ARROW);
+	SDL_SetCursor(cursor);
+
+	try {
+		gb = new GameBoy;
 		gb.loadRom("TETRIS.GB");
 		gb.init();
 		gb.interpret();
+	} finally {
+		SDL_Quit();
 	}
 
 	return 0;
