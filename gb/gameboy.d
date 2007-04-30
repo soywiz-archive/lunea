@@ -1,10 +1,9 @@
 ﻿module gameboy.z80;
 
-import SDL, std.c.windows.windows;
-import std.stdio, std.string, std.stream, std.c.stdlib, std.zlib, std.system;
-import gameboy.tables, gameboy.memory;
+public import gameboy.common;
 
-import gameboy.common;
+import gameboy.tables, gameboy.memory;
+import std.stdio, std.string, std.stream, std.c.stdlib, std.zlib, std.system;
 
 //version = trace_all;
 //version = trace;
@@ -49,7 +48,11 @@ import gameboy.common;
 	PC    -    -    Program Counter/Pointer
 */
 
-extern(Windows) void Sleep(int);
+interface GameboyHostSystem {
+	void Sleep1();
+	void UpdateScreen(int type, u8* LCDSCR);
+	void KeepAlive();
+}
 
 class GameBoy {
 	align(1) struct RomHeader {
@@ -70,11 +73,16 @@ class GameBoy {
 		u16 gchecksum;    // 014E-014F - Global Checksum (Produced by adding all bytes of the cartridge (except for the two checksum bytes))
 	}
 
+	GameboyHostSystem ghs;
 	Stream rom; // Stream
 	RomHeader *rh; // Header
 	// Memoria
 	u8 MEM[0x10000];
 	bool MEM_TRACED[0x10000];
+
+	this(GameboyHostSystem ghs) {
+		this.ghs = ghs;
+	}
 
 	// Registros
 	static if (endian == Endian.BigEndian) {
@@ -88,12 +96,6 @@ class GameBoy {
 		union { u16 DE; struct { u8 E; u8 D; } }
 		union { u16 HL; struct { u8 L; u8 H; } }
 	}
-	/*
-	union { u16 AF; struct { u8 A; u8 F; } }
-	union { u16 BC; struct { u8 B; u8 C; } }
-	union { u16 DE; struct { u8 D; u8 E; } }
-	union { u16 HL; struct { u8 H; u8 L; } }
-	*/
 	u16 SP;  // Stack Pointer
 	u16 PC;  // Program Counter
 	u8  IME; // Interrupt Master Enable Flag (Write Only)
@@ -158,9 +160,10 @@ class GameBoy {
 			mmsec -= 1000;
 		}*/
 
+		ghs.KeepAlive();
+
 		while (cycles >= ccyc) {
-			Sleep(msec);
-			GameUpdate();
+			ghs.Sleep1();
 			cycles -= ccyc;
 		}
 
@@ -239,10 +242,8 @@ class GameBoy {
 		}
 	}
 
-	/*
-		Un VBLANK se ejecuta 59.7 veces por segundo en la GB y 61.1 en SGB
-		Un scanline se ejecuta (59.7 / 154)
-	*/
+	// Un VBLANK se ejecuta 59.7 veces por segundo en la GB y 61.1 en SGB
+	// Un scanline se ejecuta (59.7 / 154)
 	void incScanLine() {
 		u8* scanline = &MEM[0xFF44];
 		/*
@@ -256,7 +257,7 @@ class GameBoy {
 		// Si el scanline es 144, estamos ya en una línea offscreen y por tanto aprovechamos para generar
 		// la interrupción V-Blank
 		if (*scanline == 144) {
-			UpdateScreen();
+			ghs.UpdateScreen(0, MEM.ptr);
 			interrupt(0x40);
 		}
 	}
@@ -274,25 +275,30 @@ class GameBoy {
 		switch (type) {
 			case 0x40: // V-Blank
 				if (*IE & (1 << 0)) {
+					SET(0, IF);
 				}
 			break;
 			case 0x48: // LCD STAT
 				if (*IE & (1 << 1)) {
+					SET(1, IF);
 				}
 			break;
 			case 0x50: // Timer
 				if (*IE & (1 << 2)) {
+					SET(2, IF);
 				}
 			break;
 			case 0x58: // Serial
 				if (*IE & (1 << 3)) {
+					SET(3, IF);
 				}
 			break;
 			case 0x60: // Joypad
 				if (*IE & (1 << 4)) {
+					SET(4, IF);
 				}
 			break;
-		}
+		} // switch
 
 		IME = true;
 	}
@@ -314,15 +320,24 @@ class GameBoy {
 		void *reg_cb;
 		bool hl;
 
-		// Decodificar registros
-		u8* addrr8(u8 r) {
+		u8 getr8 (u8 r) {
 			switch (r & 0b111) {
-				case 0b000: return &B; case 0b001: return &C;
-				case 0b010: return &D; case 0b011: return &E;
-				case 0b100: return &H; case 0b101: return &L;
-				case 0b110: return &MEM[HL]; case 0b111: return &A;
+				case 0b000: return B; case 0b001: return C;
+				case 0b010: return D; case 0b011: return E;
+				case 0b100: return H; case 0b101: return L;
+				case 0b110: return r8(MEM.ptr, HL); case 0b111: return A;
 			}
 		}
+
+		void setr8 (u8 r, u8  v) {
+			switch (r & 0b111) {
+				case 0b000: B = v; return; case 0b001: C = v; return;
+				case 0b010: D = v; return; case 0b011: E = v; return;
+				case 0b100: H = v; return; case 0b101: L = v; return;
+				case 0b110: w8(MEM.ptr, HL, v); return; case 0b111: A = v; return;
+			}
+		}
+
 
 		u16* addrr16(u8 r) {
 			switch (r & 0b11) {
@@ -338,8 +353,6 @@ class GameBoy {
 			}
 		}
 
-		u8   getr8 (u8 r       ) { return *addrr8(r);  }
-		void setr8 (u8 r, u8  v) { *addrr8(r) = v;     }
 		u16  getr16(u8 r       ) { return *addrr16(r); }
 		void setr16(u8 r, u16 v) { *addrr16(r) = v;    }
 
@@ -351,17 +364,6 @@ class GameBoy {
 		while (true) {
 			CPC = PC;
 			jump = false;
-
-			/*if (PC == 0x28) {
-				RegDump();
-				//break;
-			}
-
-			if (PC == 0x33) {
-				RegDump();
-				//exit(-1);
-				//break;
-			}*/
 
 			// Decodificamos la instrucción
 			op = MEM[PC++];
@@ -390,26 +392,28 @@ class GameBoy {
 
 			if (op == 0xCB) { // MULTIBYTE
 				u8 op2 = MEM[PC++];
-				u8* r8 = addrr8(op2 & 0b111);
+				u8 r8 = getr8(op2 & 0b111);
 				u8 bit = ((op2 >> 3) & 0b111);
 
 				switch (op2 >> 6) {
 					case 0b00:
 						switch ((op2 >> 3) & 0b111) {
-							case 0b000: TRACE(format("RLC r%d", r8)); RLC (r8); break;
-							case 0b001: TRACE(format("RRC r%d", r8)); RRC (r8); break;
-							case 0b010: TRACE(format("RL  r%d", r8)); RL  (r8); break;
-							case 0b011: TRACE(format("RR  r%d", r8)); RR  (r8); break;
-							case 0b100: TRACE(format("SLA r%d", r8)); SLA (r8); break;
-							case 0b101: TRACE(format("SRA r%d", r8)); SRA (r8); break;
-							case 0b110: TRACE(format("SWAP r%d", r8)); SWAP(r8); break;
-							case 0b111: TRACE(format("SRL r%d", r8)); SRL (r8); break;
+							case 0b000: TRACE(format("RLC  r%d", r8)); RLC (&r8); break;
+							case 0b001: TRACE(format("RRC  r%d", r8)); RRC (&r8); break;
+							case 0b010: TRACE(format("RL   r%d", r8)); RL  (&r8); break;
+							case 0b011: TRACE(format("RR   r%d", r8)); RR  (&r8); break;
+							case 0b100: TRACE(format("SLA  r%d", r8)); SLA (&r8); break;
+							case 0b101: TRACE(format("SRA  r%d", r8)); SRA (&r8); break;
+							case 0b110: TRACE(format("SWAP r%d", r8)); SWAP(&r8); break;
+							case 0b111: TRACE(format("SRL  r%d", r8)); SRL (&r8); break;
 						}
 					break;
-					case 0b01: TRACE(format("BIT %d, r%d", bit, r8)); BIT(bit, r8); break;
-					case 0b10: TRACE(format("RES %d, r%d", bit, r8)); RES(bit, r8); break;
-					case 0b11: TRACE(format("SET %d, r%d", bit, r8)); SET(bit, r8); break;
+					case 0b01: TRACE(format("BIT %d, r%d", bit, r8)); BIT(bit, &r8); break;
+					case 0b10: TRACE(format("RES %d, r%d", bit, r8)); RES(bit, &r8); break;
+					case 0b11: TRACE(format("SET %d, r%d", bit, r8)); SET(bit, &r8); break;
 				}
+
+				setr8(op2 & 0b111, r8);
 
 				addCycles(opcycles_cb[op2]);
 
@@ -437,9 +441,9 @@ class GameBoy {
 								u8 r16 = (op >> 4) & 0b11;
 								switch (op & 0b1111) {
 									case 0b0001: TRACE(format("LD r%d, %04X", r16, pu16)); setr16(r16, pu16); break;
-									case 0b0011: TRACE(format("INC r%d", r16)); INC(addrr16(r16)); break;
-									case 0b1001: TRACE(format("ADD HL, r%d", r16)); ADDHL(getr16(r16)); break;
-									case 0b1011: TRACE(format("DEC r%d", r16)); DEC(addrr16(r16)); break;
+									case 0b0011: TRACE(format("INC r%d", r16));     { u16 v = getr16(r16); INC(&v);   setr16(r16, v); } break;
+									case 0b1001: TRACE(format("ADD HL, r%d", r16)); ADDHL(getr8(r16)); break;
+									case 0b1011: TRACE(format("DEC r%d", r16));     { u16 v = getr16(r16); DEC(&v);   setr16(r16, v); } break;
 								}
 							} break;
 							case 0b010: { // A <- (r16), (r16) <- A
@@ -453,19 +457,19 @@ class GameBoy {
 								}
 								if (r2 & 0b100) { if (r2 & 0b1) { TRACE(format("INC HL")); INC(&HL); } else { TRACE(format("DEC HL")); DEC(&HL); } }
 							} break;
-							case 0b100: TRACE(format("INC r%d", r2)); INC(addrr8(r2)); break; // INC
-							case 0b101: TRACE(format("DEC r%d", r2)); DEC(addrr8(r2)); break; // DEC
+							case 0b100: TRACE(format("INC r%d", r2)); { u8 v = getr8(r2); INC(&v); setr8(r2, v); } break; // INC
+							case 0b101: TRACE(format("DEC r%d", r2)); { u8 v = getr8(r2); DEC(&v); setr8(r2, v); }  break; // DEC
 							case 0b110: TRACE(format("LD r%d, %02X", r2, pu8)); setr8(r2, pu8);  break; // LD, nn
 							case 0b111:
 								switch (r2) {
-									case 0b000: TRACE(format("RLCA")); RLCA(); break;
-									case 0b001: TRACE(format("RRCA")); RRCA(); break;
-									case 0b010: TRACE(format("RLA"));  RLA (); break;
-									case 0b011: TRACE(format("RRA"));  RRA (); break;
-									case 0b100: TRACE(format("DAA"));  DAA (); break;
-									case 0b101: TRACE(format("CPL"));  CPL (); break;
-									case 0b110: TRACE(format("SCF"));  SCF (); break;
-									case 0b111: TRACE(format("CCF"));  CCF (); break;
+									case 0b000: TRACE(format("RLCA")); RLC(&A); break;
+									case 0b001: TRACE(format("RRCA")); RRC(&A); break;
+									case 0b010: TRACE(format("RLA"));  RL (&A); break;
+									case 0b011: TRACE(format("RRA"));  RR (&A); break;
+									case 0b100: TRACE(format("DAA"));  DAA();   break;
+									case 0b101: TRACE(format("CPL"));  CPL();   break;
+									case 0b110: TRACE(format("SCF"));  SCF();   break;
+									case 0b111: TRACE(format("CCF"));  CCF();   break;
 								}
 							break;
 						}
@@ -512,7 +516,7 @@ class GameBoy {
 							case 0b001:
 								if ((r23 & 0b001) == 0) {
 									TRACE(format("POP r", r22));
-									POP16(addrr16(r22));
+									setr16(r22, POP16());
 								} else {
 									switch (r22) {
 										case 0b00: TRACE("RET"); RET();   break;
@@ -661,6 +665,7 @@ class GameBoy {
 	} // ComPare with A
 
 	void HALT() {
+		exit(-1);
 /*
    If IME = False Then Exit Sub
     temp_var = RAM(65535, 0) And RAM(65295, 0)    ' AND IE, IF
@@ -692,6 +697,7 @@ class GameBoy {
 	}
 
 	void STOP() {
+		exit(-1);
 	}
 
 	void INC(u8*  r) {
@@ -725,12 +731,19 @@ class GameBoy {
 	void ADDSP(s8  v) { ADDSP(cast(s16)v); }
 	void ADDSP(s16 v) { CF = (SP + v < SP); NF = (SP ^ v ^ (SP + v) & 0x1000) > 0; SP += v; ZF = false; NF = false; }
 
-	void RLC (u8 *r) { }
-	void RRC (u8 *r) { }
-	void RL  (u8 *r) { }
-	void RR  (u8 *r) { }
-	void SLA (u8 *r) { }
-	void SRA (u8 *r) { }
+	void RLC (u8 *r) { CF = (*r & 0b10000000) != 0; *r = (*r << 1) | CF; ZF = (*r == 0); HF = false; NF = false; } // Rotate Left
+	void RRC (u8 *r) { CF = (*r & 0b00000001) != 0; *r = (*r >> 1) | (CF << 7); ZF = (*r == 0); HF = false; NF = false; } // Rotate Right
+	void RL  (u8 *r) { exit(-1); } // Rotate Left thru carry
+	void RR  (u8 *r) { exit(-1); } // Roate Right thru carry
+	void SLA (u8 *r) { CF = (*r & 0b10000000) != 0; *r <<= 1; ZF = (*r == 0); HF = false; NF = false; } // Shift Left
+	void SRA (u8 *r) { exit(-1); } // Shift Right
+	/*
+	    cf = reg8 \ 128
+	    reg8 = (reg8 * 2) And 255
+	    setZ reg8 = 0
+	    hf = 0
+	    nf = 0
+	*/
 	void SWAP(u8 *r) {
 		*r = ((*r >> 4) & 0b1111) | ((*r << 4) & 0b11110000);
 		ZF = (*r == 0);
@@ -747,12 +760,18 @@ class GameBoy {
 	void PUSH16(u16 v) { *cast(u16*)(&MEM[SP]) = v; SP -= 2; }
 	void POP16(u16 *r) { SP += 2; *r = *cast(u16*)(&MEM[SP]); }
 
-	void RLCA() { }
-	void RRCA() { }
-	void RLA () { }
-	void RRA () { }
+	u16 POP16() { SP += 2; return *cast(u16*)(&MEM[SP]); }
+
+	/*
+	void RLCA() { RLC(&A); }
+	void RRCA() { RRC(&A); }
+	void RLA () { RL(&A); }
+	void RRA () { RR(&A); }
+	*/
+
 	void DAA () {
 		/*
+		exit(-1);
         If hf Then
            If ((A And 15) >= 10 Or hf) Then A = A - 6
            If ((A And 240) >= 160 Or cf) Then A = A - 96: cf = 1
@@ -764,10 +783,12 @@ class GameBoy {
 		setZ A = 0
 		hf = 0
 		*/
+		exit(-1);
 	} // Demical adjust register A
+
 	void CPL () { A = ~A; HF = true; NF = true; } // Logical NOT
-	void SCF () { }
-	void CCF () { }
+	void SCF () { exit(-1); }
+	void CCF () { exit(-1); }
 
 	void RET () { POP16(&PC); } // RETURN
 	void RETI() { RET(); IME = true; } // RETURN INTERRUPT
@@ -784,134 +805,4 @@ class GameBoy {
 	void TRACE(char[] s) {
 		//if (showinst) writefln("%s", s);
 	}
-}
-
-/*import dfl.all;
-
-void doit() {
-	Form myForm;
-	Label myLabel;
-
-	myForm = new Form;
-	myForm.text = "DFL Example";
-	//myForm.setClientSizeCore(160, 144);
-	myForm.centerToScreen;
-	writefln(myForm.desktopBounds.toString);
-
-	myLabel = new Label;
-	myLabel.font = new Font("Verdana", 14f);
-	myLabel.text = "Hello, DFL World!";
-	myLabel.location = Point(15, 15);
-	myLabel.autoSize = true;
-	myLabel.parent = myForm;
-
-	Application.run(myForm);
-}*/
-
-extern (C) {
-    char*   getenv  (char *);
-    int     putenv  (char *);
-}
-
-void GameUpdate() {
-	SDL_Event event;
-
-	while (SDL_PollEvent(&event)) {
-		switch (event.type) {
-			case SDL_QUIT:
-				exit(-1);
-			break;
-			case SDL_MOUSEBUTTONDOWN:
-			case SDL_MOUSEBUTTONUP:
-			break;
-			case SDL_KEYDOWN:
-			case SDL_KEYUP:
-				if (event.key.keysym.sym == SDLK_ESCAPE) {
-					exit(-1);
-				}
-			break;
-			default:
-			break;
-		}
-	}
-}
-
-import std.c.stdio, std.c.string;
-
-void UpdateScreen() {
-	static int updates = 0;
-	static int last = 0;
-	static double fps;
-
-	updates++;
-	if (updates % 10 == 0) {
-		last = SDL_GetTicks();
-	} else if (updates % 10 == 9) {
-		fps = 10000 / cast(double)(SDL_GetTicks() - last);
-		SDL_WM_SetCaption(toStringz(format("GameBoy %4.1f fps", fps)), null);
-	}
-
-	SDL_Rect drect, srect;
-	drect.x = drect.y = 0;
-	drect.w = 160 * 2;
-	drect.h = 144 * 2;
-	srect.x = srect.y = 0;
-	srect.w = 160 * 1;
-	srect.h = 144 * 1;
-	memcpy(
-		buffer.pixels,
-		gb.MEM.ptr,
-		160 * 144 * 4
-	);
-	//SDL_UpdateRect(buffer, 0, 0, 160, 144);
-	//SDL_BlitSurface(buffer, &srect, screen, &drect);
-	SDL_LockSurface(screen);
-	u32* src = cast(u32*)buffer.pixels, dst = cast(u32*)screen.pixels;
-	for (int y = 0; y < 144; y++) {
-		for (int x = 0; x < 160; x++) {
-			if (x * 2 >= screen.w) continue;
-			if (y * 2 >= screen.h) continue;
-
-			u32 c = src[x + y * 160];
-
-			int pos = x * 2 + y * screen.w * 2;
-
-			dst[pos + 1] = dst[pos] = c;
-			dst[pos + 1 + screen.w] = dst[pos + screen.w] = c;
-		}
-	}
-	SDL_UnlockSurface(screen);
-	SDL_UpdateRect(screen, 0, 0, 160 * 2, 144 * 2);
-}
-
-SDL_Surface* buffer;
-SDL_Surface* screen;
-
-GameBoy gb;
-
-int main(char[][] args) {
-	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) throw(new Exception("Unable to initialize SDL"));
-
-	putenv("SDL_VIDEO_WINDOW_POS=center");
-	putenv("SDL_VIDEO_CENTERED=1");
-
-	SDL_WM_SetCaption("GameBoy", null);
-	if ((screen = SDL_SetVideoMode(160 * 2, 144 * 2, 32, SDL_HWSURFACE | SDL_DOUBLEBUF)) is null) throw(new Exception("Unable to create SDL_Screen"));
-
-	buffer = SDL_CreateRGBSurface(SDL_SWSURFACE, 160, 144, 32, 0xFF000000, 0x00FF0000, 0x0000FF00, 0x000000FF);
-
-	SDL_Cursor *cursor = SDL_GetCursor();
-	cursor.wm_cursor.curs = cast(void *)LoadCursorA(null, IDC_ARROW);
-	SDL_SetCursor(cursor);
-
-	try {
-		gb = new GameBoy;
-		gb.loadRom("TETRIS.GB");
-		gb.init();
-		gb.interpret();
-	} finally {
-		SDL_Quit();
-	}
-
-	return 0;
 }
