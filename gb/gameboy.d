@@ -6,7 +6,7 @@ import gameboy.tables, gameboy.memory;
 import gameboy.common;
 
 //version = trace_all;
-version = trace;
+//version = trace;
 
 /*
 	References:
@@ -139,26 +139,33 @@ class GameBoy {
 	// Utilitarios
 	int cycles;   // Cantidad de ciclos * 1000 ejecutados
 	int vbcycles; // Cantidad de ciclos de reloj usado para las scanlines
+	//u64 mmsec;    // Microsegundos
 
 	bool sgb = false; // Emulacion de Super GameBoy
 	bool cgb = false; // Emulación de GameBoy Color
 
 	// Añade ciclos para simular el retraso
 	void addCycles(int n) {
-		static const uint ccyc = 0x400000, msec = 1;
+		static const uint ccyc = 0x400000, slcyc = (ccyc / cast(int)(59.73 * 144)), msec = 1;
 
 		cycles += (n << 2) * 1000;
 		vbcycles += (n << 2);
+		//mmsec = (n * 0x400000) / 1000000;
+
+		/*while (mmsec >= 1000) {
+			Sleep(1);
+			mmsec -= 1000;
+		}*/
 
 		while (cycles >= ccyc) {
-			Sleep(msec);
+			//Sleep(msec);
 			cycles -= ccyc;
 		}
 
-		while (vbcycles >= 17564 / 4) {
+		while (vbcycles >= slcyc) {
 			incScanLine();
 			//printf("%02X|", MEM[0xFF44]);
-			vbcycles -= 17564 / 4;
+			vbcycles -= slcyc;
 		}
 	}
 
@@ -253,7 +260,7 @@ class GameBoy {
 		u8 *IE = &MEM[0xFFFF]; // FFFF - IE - Interrupt Enable (R/W)
 		u8 *IF = &MEM[0xFF0F]; // FF0F - IF - Interrupt Flag (R/W)
 
-		writefln("!!INTERRUPTION: %02X", type);
+		//writefln("!!INTERRUPTION: %02X", type);
 
 		if (!IME) return;
 
@@ -340,7 +347,7 @@ class GameBoy {
 			CPC = PC;
 			jump = false;
 
-			if (PC == 0x28) {
+			/*if (PC == 0x28) {
 				RegDump();
 				//break;
 			}
@@ -349,7 +356,7 @@ class GameBoy {
 				RegDump();
 				//exit(-1);
 				//break;
-			}
+			}*/
 
 			// Decodificamos la instrucción
 			op = MEM[PC++];
@@ -462,6 +469,7 @@ class GameBoy {
 						if (op == 0x76) { // HALT (LD (HL), (HL))
 							TRACE(format("HALT"));
 							writefln("HALT");
+							HALT();
 						} else {
 							TRACE(format("LD r%d, r%d | v:%02X", r2, r1, getr8(r1)));
 							setr8(r2, getr8(r1));
@@ -647,11 +655,39 @@ class GameBoy {
 		HF = (A & 0b1111) < (v & 0b1111);
 	} // ComPare with A
 
+	void HALT() {
+/*
+   If IME = False Then Exit Sub
+    temp_var = RAM(65535, 0) And RAM(65295, 0)    ' AND IE, IF
+    If temp_var = 0 Then PC = PC - 1: Exit Sub                  'If no Interrupt occured exit
+    'Process Interrput
+    'Push pc
+    SP = SP - 1
+    WriteM SP, PC \ 256
+    SP = SP - 1
+    WriteM SP, PC And 255
+    IME = False
+    If (temp_var And 1) = 1 Then        'V-Blank ?
+        PC = 64
+        RAM(65295, 0) = RAM(65295, 0) And 254
+    ElseIf (temp_var And 2) = 2 Then    'LCDC ?
+        PC = 72
+        RAM(65295, 0) = RAM(65295, 0) And 253
+    ElseIf (temp_var And 4) = 4 Then    'Timer ?
+        PC = 80
+        RAM(65295, 0) = RAM(65295, 0) And 251
+    ElseIf (temp_var And 8) = 8 Then    'Serial ?
+        PC = 88
+        RAM(65295, 0) = RAM(65295, 0) And 247
+    ElseIf (temp_var And 16) = 16 Then  'Joypad ?
+        PC = 96
+        RAM(65295, 0) = RAM(65295, 0) And 239
+    End If
+*/
+	}
 
 	void STOP() {
 	}
-
-	void JR(s8 disp) { PC += disp; }
 
 	void INC(u8*  r) {
 		(*r)++;
@@ -681,8 +717,8 @@ class GameBoy {
 	void ADDHL(u8  v) { HL += v; }
 	void ADDHL(u16 v) { HL += v; }
 
-	void ADDSP(s8  v) { SP += v; }
-	void ADDSP(s16 v) { SP += v; }
+	void ADDSP(s8  v) { ADDSP(cast(s16)v); }
+	void ADDSP(s16 v) { CF = (SP + v < SP); NF = (SP ^ v ^ (SP + v) & 0x1000) > 0; SP += v; ZF = false; NF = false; }
 
 	void RLC (u8 *r) { }
 	void RRC (u8 *r) { }
@@ -690,62 +726,92 @@ class GameBoy {
 	void RR  (u8 *r) { }
 	void SLA (u8 *r) { }
 	void SRA (u8 *r) { }
-	void SWAP(u8 *r) { }
+	void SWAP(u8 *r) {
+		*r = ((*r >> 4) & 0b1111) | ((*r << 4) & 0b11110000);
+		ZF = (*r == 0);
+		NF = false;
+		HF = false;
+		CF = false;
+	} // SWAP NIBLES
 	void SRL (u8 *r) { }
 
-	void BIT(u8 bit, u8 *r) { A = (*r & (1 << bit)); }
+	void BIT(u8 bit, u8 *r) { ZF = (*r & (1 << bit)) == 0; NF = false; HF = true; }
 	void RES(u8 bit, u8 *r) { *r &= ~(1 << bit); }
 	void SET(u8 bit, u8 *r) { *r |=  (1 << bit); }
 
-	void PUSH16(u16 v) {
-		writefln("PUSH $%04X", v);
-		*cast(u16*)(&MEM[SP]) = v; SP -= 2;
-	}
-
-	void POP16(u16 *r) {
-		SP += 2; *r = *cast(u16*)(&MEM[SP]);
-		writefln("POP $%04X", *r);
-	}
+	void PUSH16(u16 v) { *cast(u16*)(&MEM[SP]) = v; SP -= 2; }
+	void POP16(u16 *r) { SP += 2; *r = *cast(u16*)(&MEM[SP]); }
 
 	void RLCA() { }
 	void RRCA() { }
 	void RLA () { }
 	void RRA () { }
-	void DAA () { }
-	void CPL () { }
+	void DAA () {
+		/*
+        If hf Then
+           If ((A And 15) >= 10 Or hf) Then A = A - 6
+           If ((A And 240) >= 160 Or cf) Then A = A - 96: cf = 1
+        Else
+           If ((A And 15) >= 10 Or hf) Then A = A + 6
+           If ((A And 240) >= 160 Or cf) Then A = A + 96: cf = 1
+        End If
+        A = A And 255
+		setZ A = 0
+		hf = 0
+		*/
+	} // Demical adjust register A
+	void CPL () { A = ~A; HF = true; NF = true; } // Logical NOT
 	void SCF () { }
 	void CCF () { }
 
-	void RET() {
-		POP16(&PC);
-		writefln("RETURNING TO $%04X", PC);
-	}
-	void RETI() { }
+	void RET () { POP16(&PC); } // RETURN
+	void RETI() { RET(); IME = true; } // RETURN INTERRUPT
 
-	void JP(u16 addr) { PC = addr; jump = true; }
-	void DI() { IME = false; }
-	void EI() { IME = true ; }
+	void JR(s8 disp) { PC += disp; } // JUMP LOCAL TO
+	void JP(u16 addr) { PC = addr; jump = true; } // JUMP TO
 
-	void CALL(u16 addr) {
-		PUSH16(PC);
-		JP(addr);
-	}
+	void DI() { IME = false; } // DISABLE INTERRUPTS
+	void EI() { IME = true ; } // ENABLE INTERRUPTS
 
-	void RST(u8 v) {
-		CALL(v << 3);
-	}
+	void CALL(u16 addr) { PUSH16(PC); JP(addr); } // CALL
+	void RST(u8 v) { CALL(v << 3); } // RESTART AT
 
 	void TRACE(char[] s) {
 		//if (showinst) writefln("%s", s);
 	}
 }
 
-int main(char[][] args) {
-	GameBoy gb = new GameBoy;
+/*import dfl.all;
 
-	gb.loadRom("TETRIS.GB");
-	gb.init();
-	gb.interpret();
+void doit() {
+	Form myForm;
+	Label myLabel;
+
+	myForm = new Form;
+	myForm.text = "DFL Example";
+	//myForm.setClientSizeCore(160, 144);
+	myForm.centerToScreen;
+	writefln(myForm.desktopBounds.toString);
+
+	myLabel = new Label;
+	myLabel.font = new Font("Verdana", 14f);
+	myLabel.text = "Hello, DFL World!";
+	myLabel.location = Point(15, 15);
+	myLabel.autoSize = true;
+	myLabel.parent = myForm;
+
+	Application.run(myForm);
+}*/
+
+int main(char[][] args) {
+	//doit();
+
+	if (true) {
+		GameBoy gb = new GameBoy;
+		gb.loadRom("TETRIS.GB");
+		gb.init();
+		gb.interpret();
+	}
 
 	return 0;
 }

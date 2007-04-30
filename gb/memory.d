@@ -25,6 +25,10 @@ u8* addr8(u8 *MEM, u16 addr) {
 
 // Lectura de 8 bits en memoria
 u8 r8(u8 *MEM, u16 addr) {
+	if (addr == 0xFF00) {
+		return 0b00001111;
+	}
+
 	scope(exit) {
 		MEMTRACE(addr, "----------");
 		MEM_TRACED[addr] = true;
@@ -33,6 +37,8 @@ u8 r8(u8 *MEM, u16 addr) {
 	MEMTRACE(addr, "----------");
 
 	MEMTRACE(addr, format("READ %04X -> %02X", addr, MEM[addr]));
+
+	writefln("READ: %04X", addr);
 
 	return MEM[addr];
 }
@@ -48,7 +54,7 @@ u8 r16(u8 *MEM, u16 addr) {
 
 	MEMTRACE(addr, format("READ %04X -> %02X", addr, MEM[addr]));
 
-	return *cast(u16*)(MEM + addr);
+	return *cast(u16*)&MEM[addr];
 }
 
 // Escritura de 8 bits en memoria
@@ -73,7 +79,7 @@ void w8(u8 *MEM, u16 addr, u8 v) {
 
 	MEMTRACE(addr, "----------");
 
-	MEMTRACE(addr, format("WRITE %04X <- %02X", addr, v));
+	MEMTRACE(addr, format("WRITE %04X <- %02X (%08b)", addr, v, v));
 
 	switch (addr >> 12) {
 		// ROM0
