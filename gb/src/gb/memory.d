@@ -43,6 +43,9 @@ class Memory {
 	u8 r8(u16 addr) {
 		//scope(exit) { MEM_TRACED[addr] = true; }
 		MEMTRACE(addr, format("READ %04X -> %02X", addr, MEM[addr]));
+
+		if (addr == 0xFF00) return 0b11001111;
+
 		return *cast(u8 *)(MEM.ptr + addr);
 	}
 
