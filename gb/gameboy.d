@@ -70,8 +70,8 @@ void DrawTile(u8 *bmp, u16* tile, u8 pal, int px, int py, bool trans = false, bo
 	for (int y = 0; y < 8; y++) {
 		u16 v = tile[y];
 		for (int x = 0; x < 8; x++) {
-			PutPixel(bmp, px + 8 - x, py + y, ((v >> x) & 0b1));
-			//PutPixel(bmp, px + x, py + y, ((v >> x) & 0b1) | ((v >> 7 >> x) & 0b10));
+			//PutPixel(bmp, px + 8 - x, py + y, ((v >> x) & 0b1));
+			PutPixel(bmp, px + 7 - x, py + y, ((v >> x) & 0b1) | ((v >> 7 >> x) & 0b10));
 		}
 	}
 }

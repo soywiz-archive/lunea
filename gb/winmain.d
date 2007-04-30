@@ -40,10 +40,10 @@ class GBWinSDL : GameboyHostSystem {
 
 	u32 getc(u8 r) {
 		switch (r & 0b11) {
-			case 0b00: return 0xFF333333; break;
-			case 0b01: return 0xFF555555; break;
-			case 0b10: return 0xFF999999; break;
-			case 0b11: return 0xFFDDDDDD; break;
+			case 0b00: return 0xFF9cb916; break;
+			case 0b01: return 0xFF8caa14; break;
+			case 0b10: return 0xFF306430; break;
+			case 0b11: return 0xFF103f10; break;
 		}
 	}
 
