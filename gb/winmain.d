@@ -140,6 +140,10 @@ int main(char[][] args) {
 
 	gb.loadRom("TETRIS.GB");
 	gb.init();
+
+	//gb.dump();
+	//exit(-1);
+
 	gb.interpret();
 
 	return 0;

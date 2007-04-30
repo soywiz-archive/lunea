@@ -7,6 +7,7 @@ bool MEM_TRACED[0x10000];
 
 void MEMTRACE(int addr, char[] s, bool critical = false) {
 	//if (MEM_TRACED[addr]) return;
+	//return;
 
 	if (addr == 0xFF44) return;
 	// HRAM
@@ -622,6 +623,7 @@ void w8(u8 *MEM, u16 addr, u8 v) {
 
 	if (addr <= 0x8000) {
 		//writefln("LOL");
+		//MEM[addr] = v;
 	} else {
 		MEM[addr] = v;
 	}

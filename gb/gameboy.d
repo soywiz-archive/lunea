@@ -84,6 +84,10 @@ class GameBoy {
 		this.ghs = ghs;
 	}
 
+	~this() {
+		dump();
+	}
+
 	// Registros
 	static if (endian == Endian.BigEndian) {
 		union { u16 AF; struct { u8 A; u8 F; } }
@@ -181,8 +185,9 @@ class GameBoy {
 	void loadRom(Stream s) {
 		rom = s;
 		rom.position = 0;
-		rom.readExact(&MEM[0], 0x4000);
-		switchBank2(1);
+		//rom.readExact(&MEM[0], 0x4000);
+		//switchBank2(1);
+		rom.readExact(&MEM[0], 0x8000);
 		rh = cast(RomHeader *)(&MEM[0x100]);
 	}
 
@@ -307,10 +312,11 @@ class GameBoy {
 	}
 
 	void dump() {
+		writefln("dumping...");
 		File save = new File("dump", FileMode.OutNew);
-		save.writeExact(&A, (&IME - &A) + IME.sizeof);
 		//save.write(cast(ubyte[])compress(MEM, 9));
-		save.write(MEM);
+		save.writeExact(MEM.ptr, MEM.length);
+		save.writeExact(&A, (&IME - &A) + IME.sizeof);
 		save.close();
 	}
 
@@ -394,6 +400,14 @@ class GameBoy {
 
 			//if (PC == 0x036C) { RegDump(); exit(-1); }
 			//if (PC == 0x36F) { RegDump(); exit(-1); }
+			/*
+			if (PC == 0x37B) { RegDump(); }
+			if (PC >= 0x37B && PC < 0x384) { RegDump(); }
+			if (PC == 0x384) { RegDump(); dump(); exit(-1); }
+			if (PC == 0x386) { RegDump(); dump(); exit(-1); }
+			*/
+			//if (PC == 0x37F) { RegDump(); dump(); exit(-1); }
+			//if (PC == 0x386) { RegDump(); dump(); exit(-1); }
 
 			// Decodificamos la instrucción
 			op = MEM[PC++];
@@ -477,15 +491,31 @@ class GameBoy {
 								}
 							} break;
 							case 0b010: { // A <- (r16), (r16) <- A
-								u16 v16 = (r2 & 0b100) ? HL : getr16(r2 & 0b11);
-								if (r2 & 0b1) {
-									TRACE(format("LD A, [%04X]", v16));
-									A = r8(MEM.ptr, v16);
-								} else {
+								/*
+									00 000 010 - 02 - LD (BC), A
+									00 001 010 - 0A - LD A, (BC)
+									00 010 010 - 12 - LD (DE), A
+									00 011 010 - 1A - LD A, (DE)
+
+									00 100 010 - 22 - LDI (HL), A
+									00 101 010 - 2A - LDI A, (HL)
+									00 110 010 - 32 - LDD (HL), A
+									00 111 010 - 3A - LDI A, (HL)
+								*/
+								//writefln("OP(%02X): %08b", op, op);
+								// 00 XXX 010
+								// 00 XXX 010
+								// TODO
+								// BUG
+								u16 v16 = (r2 & 0b100) ? HL : getr16(r22 & 0b11);
+								if (!(r2 & 0b1)) {
 									TRACE(format("LD [%04X], A", v16));
 									w8(MEM.ptr, v16, A);
+								} else {
+									TRACE(format("LD A, [%04X]", v16));
+									A = r8(MEM.ptr, v16);
 								}
-								if (r2 & 0b100) { if (r2 & 0b1) { TRACE(format("INC HL")); INC(&HL); } else { TRACE(format("DEC HL")); DEC(&HL); } }
+								if (r2 & 0b100) { if (!(r2 & 0b1)) { TRACE(format("INC HL")); INC(&HL); } else { TRACE(format("DEC HL")); DEC(&HL); } }
 							} break;
 							case 0b100: TRACE(format("INC r%d", r2)); { u8 v = getr8(r2); INC(&v); setr8(r2, v); } break; // INC
 							case 0b101: TRACE(format("DEC r%d", r2)); { u8 v = getr8(r2); DEC(&v); setr8(r2, v); }  break; // DEC
