@@ -1,5 +1,7 @@
 ﻿module gameboy.common;
 
+public import gameboy.tables;
+
 alias ubyte  u8;
 alias ushort u16;
 alias uint   u32;

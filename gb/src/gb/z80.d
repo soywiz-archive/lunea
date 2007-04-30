@@ -2,10 +2,12 @@ module gameboy.z80;
 
 public import gameboy.common;
 
-import gameboy.tables, gameboy.memory;
+import gameboy.lcd;
+import gameboy.memory;
+
 import std.stdio, std.string, std.stream, std.c.stdlib, std.zlib, std.system;
 
-//version = trace_all;
+// Diferentes versiones (depuración etc.)
 version = trace;
 
 /*
@@ -48,35 +50,28 @@ version = trace;
 	PC    -    -    Program Counter/Pointer
 */
 
+// Interface usado para mantener la portabilidad entre diferentes plataformas y sistemas
 interface GameboyHostSystem {
 	void Sleep1();
 	void UpdateScreen(int type, u8* LCDSCR);
 	void KeepAlive();
 }
 
-void PutPixel(u8 *bmp, int px, int py, u8 c) {
-	if (px < 0 || px >= 160 || py < 0 || py >= 144) return;
-	u8* b = &bmp[py * 40 + px / 4]; c &= 0b11;
-	switch (px % 4) {
-		case 0b00: *b = (*b & 0b11111100) | (c << 0); break;
-		case 0b01: *b = (*b & 0b11110011) | (c << 2); break;
-		case 0b10: *b = (*b & 0b11001111) | (c << 4); break;
-		case 0b11: *b = (*b & 0b00111111) | (c << 6); break;
-	}
-}
-
-void DrawTile(u8 *bmp, u16* tile, u8 pal, int px, int py, bool trans = false, bool xflip = false, bool yflip = false) {
-	//for (int n = 0; n < 16; n++) writef("%02X ", tile[n]); writefln();
-	for (int y = 0; y < 8; y++) {
-		u16 v = tile[y];
-		for (int x = 0; x < 8; x++) {
-			//PutPixel(bmp, px + 8 - x, py + y, ((v >> x) & 0b1));
-			PutPixel(bmp, px + 7 - x, py + y, ((v >> x) & 0b1) | ((v >> 7 >> x) & 0b10));
-		}
-	}
-}
-
+// Clase encargada de emular una GameBoy
 class GameBoy {
+	// Al crear la instancia
+	this(GameboyHostSystem ghs) {
+		this.ghs = ghs;        // GameboyHostSystem
+		this.lcd = new LCD;    // Display LCD
+		this.mem = new Memory; // Memoria
+	}
+
+	// Al borrar la instancia
+	~this() {
+		//dump();
+	}
+
+	// Cabecera de la ROM en la posición 0x100
 	align(1) struct RomHeader {
 		u8  entry[0x4];   // 0100-0103 - Entry Point
 		u8  logo [0x30];  // 0104-0133 - Nintendo Logo
@@ -95,39 +90,23 @@ class GameBoy {
 		u16 gchecksum;    // 014E-014F - Global Checksum (Produced by adding all bytes of the cartridge (except for the two checksum bytes))
 	}
 
-	u8 LCDIMG[0x1680];
-
 	GameboyHostSystem ghs;
-	Stream rom; // Stream
+	Stream    rom; // Stream
 	RomHeader *rh; // Header
-	// Memoria
-	u8 MEM[0x10000];
-	bool MEM_TRACED[0x10000];
-
-	this(GameboyHostSystem ghs) {
-		this.ghs = ghs;
-	}
-
-	~this() {
-		dump();
-	}
+	Memory    mem; // Memoria
+	LCD       lcd; // LCD
 
 	// Registros
 	static if (endian == Endian.BigEndian) {
-		union { u16 AF; struct { u8 A; u8 F; } }
-		union { u16 BC; struct { u8 B; u8 C; } }
-		union { u16 DE; struct { u8 D; u8 E; } }
-		union { u16 HL; struct { u8 H; u8 L; } }
+		union { u16 AF; struct { u8 A; u8 F; } } union { u16 BC; struct { u8 B; u8 C; } }
+		union { u16 DE; struct { u8 D; u8 E; } } union { u16 HL; struct { u8 H; u8 L; } }
 	} else {
-		union { u16 AF; struct { u8 F; u8 A; } }
-		union { u16 BC; struct { u8 C; u8 B; } }
-		union { u16 DE; struct { u8 E; u8 D; } }
-		union { u16 HL; struct { u8 L; u8 H; } }
+		union { u16 AF; struct { u8 F; u8 A; } } union { u16 BC; struct { u8 C; u8 B; } }
+		union { u16 DE; struct { u8 E; u8 D; } } union { u16 HL; struct { u8 L; u8 H; } }
 	}
 	u16 SP;  // Stack Pointer
 	u16 PC;  // Program Counter
 	u8  IME; // Interrupt Master Enable Flag (Write Only)
-	bool jump;
 
 	// Carry Flag
 	static const u8 CFMASK = 0b00010000;
@@ -149,6 +128,7 @@ class GameBoy {
 	bool ZF() { return (F & ZFMASK) != 0; }
 	void ZF(bool set) { if (set) F |= ZFMASK; else F &= ~ZFMASK; }
 
+	// Mostramos un volcado de los registros y de los entornos de la pila
 	void RegDump() {
 		writefln(
 			"PC:[%04X] | " "AF:%04X " "BC:%04X "
@@ -163,7 +143,7 @@ class GameBoy {
 		writefln("STACK {");
 			for (int n = SP - 12; n <= SP + 18; n += 2) {
 				if (n < 0xFFFE) {
-					writefln("  %04X: %04X", n, r16(MEM.ptr, n));
+					writefln("  %04X: %04X", n, mem.r16(n));
 				}
 			}
 		writefln("}");
@@ -172,7 +152,7 @@ class GameBoy {
 	// Utilitarios
 	int cycles;   // Cantidad de ciclos * 1000 ejecutados
 	int vbcycles; // Cantidad de ciclos de reloj usado para las scanlines
-	//u64 mmsec;    // Microsegundos
+	u64 mmsec;    // Microsegundos
 
 	bool sgb = false; // Emulacion de Super GameBoy
 	bool cgb = false; // Emulación de GameBoy Color
@@ -183,12 +163,6 @@ class GameBoy {
 
 		cycles += (n << 2) * 1000;
 		vbcycles += (n << 2);
-		//mmsec = (n * 0x400000) / 1000000;
-
-		/*while (mmsec >= 1000) {
-			Sleep(1);
-			mmsec -= 1000;
-		}*/
 
 		ghs.KeepAlive();
 
@@ -199,7 +173,6 @@ class GameBoy {
 
 		while (vbcycles >= slcyc) {
 			incScanLine();
-			//printf("%02X|", MEM[0xFF44]);
 			vbcycles -= slcyc;
 		}
 	}
@@ -208,16 +181,21 @@ class GameBoy {
 	void loadRom(char[] name) { loadRom(new File(name, FileMode.In)); }
 	void loadRom(Stream s) {
 		rom = s;
-		rom.position = 0;
-		//rom.readExact(&MEM[0], 0x4000);
-		//switchBank2(1);
-		rom.readExact(&MEM[0], 0x8000);
-		rh = cast(RomHeader *)(&MEM[0x100]);
+		switchBank0(0);
+		switchBank1(1);
+		rh = cast(RomHeader *)(mem.addr(0x100));
 	}
 
-	void switchBank2(u8 bank) {
+	// Elegimos el banco0 (será fijo siempre)
+	void switchBank0(u8 bank) {
 		rom.position = 0x4000 * bank;
-		rom.readExact(&MEM[0x4000], 0x4000);
+		rom.readExact(mem.addr8(0x0000), 0x4000);
+	}
+
+	// Elegimos el banco1 (se puede cambiar para roms mayores de 32K)
+	void switchBank1(u8 bank) {
+		rom.position = 0x4000 * bank;
+		rom.readExact(mem.addr8(0x4000), 0x4000);
 	}
 
 	// Inicializamos la emulación
@@ -225,59 +203,43 @@ class GameBoy {
 		AF = 0x01B0; BC = 0x0013;
 		DE = 0x00D8; HL = 0x014D;
 		SP = 0xFFFE; PC = 0x0100;
-		MEM[0xFF05] = 0x00; // TIMA
-		MEM[0xFF06] = 0x00; // TMA
-		MEM[0xFF07] = 0x00; // TAC
-		MEM[0xFF10] = 0x80; // NR10
-		MEM[0xFF11] = 0xBF; // NR11
-		MEM[0xFF12] = 0xF3; // NR12
-		MEM[0xFF14] = 0xBF; // NR14
-		MEM[0xFF16] = 0x3F; // NR21
-		MEM[0xFF17] = 0x00; // NR22
-		MEM[0xFF19] = 0xBF; // NR24
-		MEM[0xFF1A] = 0x7F; // NR30
-		MEM[0xFF1B] = 0xFF; // NR31
-		MEM[0xFF1C] = 0x9F; // NR32
-		MEM[0xFF1E] = 0xBF; // NR33
-		MEM[0xFF20] = 0xFF; // NR41
-		MEM[0xFF21] = 0x00; // NR42
-		MEM[0xFF22] = 0x00; // NR43
-		MEM[0xFF23] = 0xBF; // NR30
-		MEM[0xFF24] = 0x77; // NR50
-		MEM[0xFF25] = 0xF3; // NR51
-		MEM[0xFF26] = sgb ? 0xF0 : 0xF1; // NR52
-		MEM[0xFF40] = 0x91; // LCDC
-		MEM[0xFF42] = 0x00; // SCY
-		MEM[0xFF43] = 0x00; // SCX
-		MEM[0xFF45] = 0x00; // LYC
-		MEM[0xFF47] = 0xFC; // BGP
-		MEM[0xFF48] = 0xFF; // OBP0
-		MEM[0xFF49] = 0xFF; // OBP1
-		MEM[0xFF4A] = 0x00; // WY
-		MEM[0xFF4B] = 0x00; // WX
-		MEM[0xFFFF] = 0x00; // IE
-	}
-
-	void traceInstruction(int PC, int count = 1) {
-		while (count > 0) {
-			u8* addr = MEM.ptr + PC;
-			writef("TRACE: ");
-			writef("%04X: ", PC);
-			char[] casm = disasm(addr, PC);
-			writef("%s", casm);
-			for (int n = 0; n < 0x0E - cast(int)casm.length; n++) writef(" ");
-			writef("[");
-			for (u8* p = MEM.ptr + PC; p < addr; p++) writef("%02X", *p);
-			writefln("]");
-			PC = addr - MEM.ptr;
-			count--;
-		}
+		mem.w8(0xFF05, 0x00); // TIMA
+		mem.w8(0xFF06, 0x00); // TMA
+		mem.w8(0xFF07, 0x00); // TAC
+		mem.w8(0xFF10, 0x80); // NR10
+		mem.w8(0xFF11, 0xBF); // NR11
+		mem.w8(0xFF12, 0xF3); // NR12
+		mem.w8(0xFF14, 0xBF); // NR14
+		mem.w8(0xFF16, 0x3F); // NR21
+		mem.w8(0xFF17, 0x00); // NR22
+		mem.w8(0xFF19, 0xBF); // NR24
+		mem.w8(0xFF1A, 0x7F); // NR30
+		mem.w8(0xFF1B, 0xFF); // NR31
+		mem.w8(0xFF1C, 0x9F); // NR32
+		mem.w8(0xFF1E, 0xBF); // NR33
+		mem.w8(0xFF20, 0xFF); // NR41
+		mem.w8(0xFF21, 0x00); // NR42
+		mem.w8(0xFF22, 0x00); // NR43
+		mem.w8(0xFF23, 0xBF); // NR30
+		mem.w8(0xFF24, 0x77); // NR50
+		mem.w8(0xFF25, 0xF3); // NR51
+		mem.w8(0xFF26, sgb ? 0xF0 : 0xF1); // NR52
+		mem.w8(0xFF40, 0x91); // LCDC
+		mem.w8(0xFF42, 0x00); // SCY
+		mem.w8(0xFF43, 0x00); // SCX
+		mem.w8(0xFF45, 0x00); // LYC
+		mem.w8(0xFF47, 0xFC); // BGP
+		mem.w8(0xFF48, 0xFF); // OBP0
+		mem.w8(0xFF49, 0xFF); // OBP1
+		mem.w8(0xFF4A, 0x00); // WY
+		mem.w8(0xFF4B, 0x00); // WX
+		mem.w8(0xFFFF, 0x00); // IE
 	}
 
 	// Un VBLANK se ejecuta 59.7 veces por segundo en la GB y 61.1 en SGB
 	// Un scanline se ejecuta (59.7 / 154)
 	void incScanLine() {
-		u8* scanline = &MEM[0xFF44];
+		u8* scanline = mem.addr8(0xFF44);
 		/*
 			FF44 - LY - LCDC Y-Coordinate (R)
 			The LY indicates the vertical line to which the present data is transferred
@@ -289,26 +251,15 @@ class GameBoy {
 		// Si el scanline es 144, estamos ya en una línea offscreen y por tanto aprovechamos para generar
 		// la interrupción V-Blank
 		if (*scanline == 144) {
-			for (int y = 0, n = 0; y < 18; y++) {
-				for (int x = 0; x < 20; x++, n++) {
-					u8 tile = MEM[0x9800 + y * 0x20 + x];
-					DrawTile(LCDIMG.ptr, cast(u16*)&MEM[0x8000 + tile * 0x10], 0, x * 8, y * 8);
-					//DrawTile(LCDIMG.ptr, cast(u16 *)&MEM[0x8000 + tile * 0x10], 0, x * 8, y * 8);
-					//DrawTile(LCDIMG.ptr, &MEM[0x8000 + n * 0x10], 0, x * 8, y * 8);
-					//writef("%02X", tile);
-				}
-				//writefln();
-			}
-			//writefln();
-
-			ghs.UpdateScreen(0, LCDIMG.ptr);
+			lcd.DrawScreen(mem.addr8(0x8000));
+			ghs.UpdateScreen(0, lcd.LCDIMG.ptr);
 			interrupt(0x40);
 		}
 	}
 
 	void interrupt(u8 type) {
-		u8 *IE = &MEM[0xFFFF]; // FFFF - IE - Interrupt Enable (R/W)
-		u8 *IF = &MEM[0xFF0F]; // FF0F - IF - Interrupt Flag (R/W)
+		u8 *IE = mem.addr8(0xFFFF); // FFFF - IE - Interrupt Enable (R/W)
+		u8 *IF = mem.addr8(0xFF0F); // FF0F - IF - Interrupt Flag (R/W)
 
 		//writefln("!!INTERRUPTION: %02X", type);
 
@@ -347,13 +298,16 @@ class GameBoy {
 		IME = true;
 	}
 
+	// Crea una dump de memória
 	void dump() {
 		writefln("dumping...");
 		File save = new File("dump", FileMode.OutNew);
-		//save.write(cast(ubyte[])compress(MEM, 9));
-		save.writeExact(MEM.ptr, MEM.length);
-		save.writeExact(&A, (&IME - &A) + IME.sizeof);
-		save.close();
+		try {
+			mem.save(save);
+			save.writeExact(&A, (&IME - &A) + IME.sizeof);
+		} finally {
+			save.close();
+		}
 	}
 
 	bool showinst;
@@ -365,24 +319,39 @@ class GameBoy {
 		void *reg_cb;
 		bool hl;
 
-		u8 getr8 (u8 r) {
+		void traceInstruction(int PC, int count = 1) {
+			while (count > 0) {
+				u8* addr = mem.addr8(PC);
+				writef("TRACE: ");
+				writef("%04X: ", PC);
+				char[] casm = disasm(addr, PC);
+				writef("%s", casm);
+				for (int n = 0; n < 0x0E - cast(int)casm.length; n++) writef(" ");
+				writef("[");
+				for (u8* p = mem.addr8(PC); p < addr; p++) writef("%02X", *p);
+				writefln("]");
+				PC = addr - mem.addr8(0);
+				count--;
+			}
+		}
+
+		u8 getr8(u8 r) {
 			switch (r & 0b111) {
 				case 0b000: return B; case 0b001: return C;
 				case 0b010: return D; case 0b011: return E;
 				case 0b100: return H; case 0b101: return L;
-				case 0b110: return r8(MEM.ptr, HL); case 0b111: return A;
+				case 0b110: return mem.r8(HL); case 0b111: return A;
 			}
 		}
 
-		void setr8 (u8 r, u8  v) {
+		void setr8(u8 r, u8  v) {
 			switch (r & 0b111) {
 				case 0b000: B = v; return; case 0b001: C = v; return;
 				case 0b010: D = v; return; case 0b011: E = v; return;
 				case 0b100: H = v; return; case 0b101: L = v; return;
-				case 0b110: w8(MEM.ptr, HL, v); return; case 0b111: A = v; return;
+				case 0b110: mem.w8(HL, v); return; case 0b111: A = v; return;
 			}
 		}
-
 
 		u16* addrr16(u8 r) {
 			switch (r & 0b11) {
@@ -398,8 +367,13 @@ class GameBoy {
 			}
 		}
 
-		u16  getr16(u8 r       ) { return *addrr16(r); }
-		void setr16(u8 r, u16 v) { *addrr16(r) = v;    }
+		u16  getr16(u8 r) {
+			return *addrr16(r);
+		}
+
+		void setr16(u8 r, u16 v) {
+			*addrr16(r) = v;
+		}
 
 		// Leer parámetros
 		u8  pu8 () { return *cast(u8 *)APC; } s8  ps8 () { return *cast(s8 *)APC; }
@@ -408,60 +382,20 @@ class GameBoy {
 		// Bucle principal
 		while (true) {
 			CPC = PC;
-			jump = false;
-
-			/*
-			if (PC == 0x2A0) { RegDump(); }
-			if (PC == 0x2A3) { RegDump(); }
-			if (PC == 0x2A6) { RegDump(); }
-			if (PC == 0x2BA) { RegDump(); }
-			if (PC == 0x2C4) { RegDump(); }
-			if (PC == 0x29D7) { RegDump(); }
-			if (PC == 0x29D9) { RegDump(); }
-			if (PC == 0x29E0) { RegDump(); }
-				*/
-			//if (PC == 0x02CD) { RegDump(); exit(-1); }
-			//if (PC == 0x028) { RegDump(); exit(-1); }
-
-			//if (PC >= 0x028 && PC < 0x033) { RegDump(); }
-
-			//if (PC == 0x0369) { RegDump(); }
-			//if (PC == 0x2820) { RegDump(); }
-			//if (PC >= 0x2820 && PC < 0x282A) { RegDump(); }
-			//if (PC == 0x282A) { RegDump(); exit(-1); }
-			//if (PC == 0x02F8) { RegDump(); exit(-1); }
-			//if (PC == 0x02B4) { RegDump(); exit(-1); }
-
-			//if (PC == 0x2838) { RegDump(); exit(-1); }
-
-			//if (PC == 0x036C) { RegDump(); exit(-1); }
-			//if (PC == 0x36F) { RegDump(); exit(-1); }
-			/*
-			if (PC == 0x37B) { RegDump(); }
-			if (PC >= 0x37B && PC < 0x384) { RegDump(); }
-			if (PC == 0x384) { RegDump(); dump(); exit(-1); }
-			if (PC == 0x386) { RegDump(); dump(); exit(-1); }
-			*/
-			//if (PC == 0x37F) { RegDump(); dump(); exit(-1); }
-
-			//if (PC == 0x27D0) { writefln("Copia de TILES"); RegDump(); dump(); exit(-1); }
 
 			// Decodificamos la instrucción
-			op = MEM[PC++];
+			op = mem.r8(PC++);
 
-			APC = &MEM[PC];
+			APC = mem.addr(PC);
+
+			showinst = false;
 
 			// Trazamos la instrucción si corresponde
 			version(trace) {
-				version(trace_all) {
+				if (!mem.traced(CPC)) {
+					showinst = true;
 					traceInstruction(CPC);
-				} else {
-					showinst = false;
-					if (!MEM_TRACED[CPC]) {
-						traceInstruction(CPC);
-						MEM_TRACED[CPC] = true;
-						showinst = true;
-					}
+					mem.trace(CPC);
 				}
 			}
 
@@ -472,7 +406,7 @@ class GameBoy {
 			u8 r14 = (op >> 0) & 0b1111, r22 = (op >> 4) & 0b0011;
 
 			if (op == 0xCB) { // MULTIBYTE
-				u8 op2 = MEM[PC++];
+				u8 op2 = mem.r8(PC++);
 				u8 r8 = getr8(op2 & 0b111);
 				u8 bit = ((op2 >> 3) & 0b111);
 
@@ -509,7 +443,7 @@ class GameBoy {
 							case 0b000:
 								switch (r23) {
 									case 0b000: TRACE("NOP"); NOP();   break;
-									case 0b001: TRACE(format("LD [%04X] <- SP[%04X]", pu16, SP)); w16(MEM.ptr, pu16, SP); break;
+									case 0b001: TRACE(format("LD [%04X] <- SP[%04X]", pu16, SP)); mem.w16(pu16, SP); break;
 									case 0b010: TRACE("STOP"); STOP();  break;
 									case 0b011: TRACE(format("JR %d", ps8)); JR(ps8); break;
 									case 0b100: TRACE(format("JR NZ, %d", ps8)); if (!ZF) JR(ps8); break;
@@ -547,10 +481,10 @@ class GameBoy {
 								u16 v16 = (r2 & 0b100) ? HL : getr16(r22 & 0b11);
 								if (!(r2 & 0b1)) {
 									TRACE(format("LD [%04X], A", v16));
-									w8(MEM.ptr, v16, A);
+									mem.w8(v16, A);
 								} else {
 									TRACE(format("LD A, [%04X]", v16));
-									A = r8(MEM.ptr, v16);
+									A = mem.r8(v16);
 								}
 								if (r2 & 0b100) { if (!(r23 & 0b10)) { TRACE(format("INC HL")); INC(&HL); } else { TRACE(format("DEC HL")); DEC(&HL); } }
 							} break;
@@ -600,9 +534,9 @@ class GameBoy {
 									if (getflag(r23 & 0b11)) RET();
 								} else {
 									switch (r23 & 0b11) {
-										case 0b00: TRACE(format("LD [0xFF00+$%02X], A", pu8)); w8(MEM.ptr, 0xFF00 | pu8, A);  break; // LD ($FF00 + nn), A // special (old ret po)
+										case 0b00: TRACE(format("LD [0xFF00+$%02X], A", pu8)); mem.w8(0xFF00 | pu8, A);  break; // LD ($FF00 + nn), A // special (old ret po)
 										case 0b01: TRACE(format("ADD SP, %d", ps8)); ADDSP(ps8); break; // ADD SP, dd // special (old ret pe) (nocash extended as shortint)
-										case 0b10: TRACE(format("LD A, [0xFF00+$%02X]", pu8)); A = r8(MEM.ptr, 0xFF00 | pu8); break; // LD A, ($FF00 + nn) // special (old ret p)
+										case 0b10: TRACE(format("LD A, [0xFF00+$%02X]", pu8)); A = mem.r8(0xFF00 | pu8); break; // LD A, ($FF00 + nn) // special (old ret p)
 										case 0b11: // TODO: SET FLAGS
 											TRACE(format("LD HL, SP + %d", ps8));
 											HL = SP + ps8;
@@ -630,21 +564,21 @@ class GameBoy {
 									if (getflag(r23 & 0b11)) JP(pu16);
 								} else {
 									switch (r23 & 0b11) {
-										case 0b00: TRACE(format("LD [0xFF00+C], A")); w8(MEM.ptr, 0xFF00 | C, A); break;
-										case 0b01: TRACE(format("LD [$%04X], A", pu16)); w8(MEM.ptr, pu16, A); break;
-										case 0b10: TRACE(format("LD A, [0xFF00+C]")); A = r8(MEM.ptr, 0xFF00 | C); break;
-										case 0b11: TRACE(format("LD A, [$%04X]", pu16)); A = r8(MEM.ptr, pu16); break;
+										case 0b00: TRACE(format("LD [0xFF00+C], A"     )); mem.w8(0xFF00 | C, A); break;
+										case 0b01: TRACE(format("LD [$%04X], A",   pu16)); mem.w8(pu16, A); break;
+										case 0b10: TRACE(format("LD A, [0xFF00+C]"     )); A = mem.r8(0xFF00 | C); break;
+										case 0b11: TRACE(format("LD A, [$%04X]",   pu16)); A = mem.r8(pu16); break;
 									}
 								}
 							break;
 							case 0b011:
 								switch (r23) {
-									case 0b000: TRACE(format("JP $%04X", pu16)); JP(pu16); break; // C3
-									case 0b001: writefln("FATAL ERROR reached '0xCB'"); exit(-1); break; // CB
-									case 0b010: writefln("INVALID OP (%02X)", op); exit(-1); break; // D3
-									case 0b011: writefln("INVALID OP (%02X)", op); exit(-1); break; // DB
-									case 0b100: writefln("INVALID OP (%02X)", op); exit(-1); break; // E3
-									case 0b101: writefln("INVALID OP (%02X)", op); exit(-1); break; // EB
+									case 0b000: TRACE(format("JP $%04X",      pu16)); JP(pu16); break; // C3
+									case 0b001: writefln("F.ERROR reached '0xCB'"  ); exit(-1); break; // CB
+									case 0b010: writefln("INVALID OP (%02X)", op   ); exit(-1); break; // D3
+									case 0b011: writefln("INVALID OP (%02X)", op   ); exit(-1); break; // DB
+									case 0b100: writefln("INVALID OP (%02X)", op   ); exit(-1); break; // E3
+									case 0b101: writefln("INVALID OP (%02X)", op   ); exit(-1); break; // EB
 									case 0b110: IME = false; break; // F3 (DI)
 									case 0b111: IME = true;  break; // FB (EI)
 								}
@@ -689,15 +623,6 @@ class GameBoy {
 
 				addCycles(opcycles[op]);
 			} // else
-
-			if (jump && showinst) {
-				writefln("--------------------------------------------------\n");
-			}
-
-			/*if (showinst) {
-				RegDump();
-				writefln();
-			}*/
 		} // while
 	} // function
 
@@ -815,10 +740,8 @@ class GameBoy {
 	void RES(u8 bit, u8 *r) { *r &= ~(1 << bit); }
 	void SET(u8 bit, u8 *r) { *r |=  (1 << bit); }
 
-	void PUSH16(u16 v) { SP -= 2; *cast(u16*)(&MEM[SP]) = v; }
-	void POP16(u16 *r) { *r = *cast(u16*)(&MEM[SP]); SP += 2; }
-
-	u16 POP16() { u16 rv = *cast(u16*)(&MEM[SP]); SP += 2; return rv; }
+	void PUSH16(u16 v) { SP -= 2; mem.w16(SP, v); }
+	u16  POP16() { SP += 2; return mem.r16(SP - 2); }
 
 	void DAA () {
 		exit(-1);
@@ -828,11 +751,11 @@ class GameBoy {
 	void SCF () { exit(-1); }
 	void CCF () { exit(-1); }
 
-	void RET () { POP16(&PC); } // RETURN
+	void RET () { PC = POP16(); } // RETURN
 	void RETI() { RET(); IME = true; } // RETURN INTERRUPT
 
-	void JR(s8 disp) { PC += disp; } // JUMP LOCAL TO
-	void JP(u16 addr) { PC = addr; jump = true; } // JUMP TO
+	void JR(s8  disp) { PC += disp; } // JUMP LOCAL TO
+	void JP(u16 addr) { PC = addr; } // JUMP TO
 
 	void DI() { IME = false; } // DISABLE INTERRUPTS
 	void EI() { IME = true ; } // ENABLE INTERRUPTS
