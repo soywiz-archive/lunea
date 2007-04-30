@@ -17,6 +17,16 @@ void MEMTRACE(int addr, char[] s, bool critical = false) {
 	} else {
 		//writefln("%s", s);
 	}
+
+	/*if (addr >= 0xFE00 && addr <= 0xFE9F) {
+		writefln("%s", s);
+	}
+
+	if (addr >= 0x8000 && addr <= 0x9FFF) {
+		writefln("%s", s);
+	}*/
+
+	// FE00-FE9F   Sprite Attribute Table (OAM)
 }
 
 u8* addr8(u8 *MEM, u16 addr) {
@@ -25,10 +35,6 @@ u8* addr8(u8 *MEM, u16 addr) {
 
 // Lectura de 8 bits en memoria
 u8 r8(u8 *MEM, u16 addr) {
-	if (addr == 0xFF00) {
-		return 0b00001111;
-	}
-
 	scope(exit) {
 		MEMTRACE(addr, "----------");
 		MEM_TRACED[addr] = true;
@@ -38,11 +44,15 @@ u8 r8(u8 *MEM, u16 addr) {
 
 	MEMTRACE(addr, format("READ %04X -> %02X", addr, MEM[addr]));
 
+	if (addr == 0xFF00) {
+		return 0b11101111;
+	}
+
 	return MEM[addr];
 }
 
 // Lectura de 16 bits en memoria
-u8 r16(u8 *MEM, u16 addr) {
+u16 r16(u8 *MEM, u16 addr) {
 	scope(exit) {
 		MEMTRACE(addr, "----------");
 		MEM_TRACED[addr] = true;
@@ -163,25 +173,25 @@ void w8(u8 *MEM, u16 addr, u8 v) {
 						*/
 					break;
 					case 0xFF04: //FF04 - DIV - Divider Register (R/W)
-						MEMTRACE(addr, "WRITE SERIAL");
+						MEMTRACE(addr, "WRITE DIVIDE REGISTER");
 						/*
 						This register is incremented at rate of 16384Hz (~16779Hz on SGB). In CGB Double Speed Mode it is incremented twice as fast, ie. at 32768Hz. Writing any value to this register resets it to 00h.
 						*/
 					break;
 					case 0xFF05: //FF05 - TIMA - Timer counter (R/W)
-						MEMTRACE(addr, "WRITE SERIAL");
+						MEMTRACE(addr, "WRITE TIMER COUNTER");
 						/*
 						This timer is incremented by a clock frequency specified by the TAC register ($FF07). When the value overflows (gets bigger than FFh) then it will be reset to the value specified in TMA (FF06), and an interrupt will be requested, as described below.
 						*/
 					break;
 					case 0xFF06: //FF06 - TMA - Timer Modulo (R/W)
-						MEMTRACE(addr, "WRITE SERIAL");
+						MEMTRACE(addr, "WRITE TIMER RELOAD");
 						/*
 						When the TIMA overflows, this data will be loaded.
 						*/
 					break;
 					case 0xFF07: //FF07 - TAC - Timer Control (R/W)
-						MEMTRACE(addr, "WRITE SERIAL");
+						MEMTRACE(addr, "WRITE TMER CTRL");
 						/*
 						Bit 2    - Timer Stop  (0=Stop, 1=Start)
 						Bits 1-0 - Input Clock Select
@@ -382,7 +392,7 @@ void w8(u8 *MEM, u16 addr, u8 v) {
 					break;
 				// SOUND (Sound Channel 4 - Noise)
 					case 0xFF20: // FF20 - NR41 - Channel 4 Sound Length (R/W)
-						MEMTRACE(addr, "WRITE SOUND NOISE");
+						MEMTRACE(addr, "WRITE SOUND NOISE STEREO");
 						/*
 						Bit 5-0 - Sound length data (t1: 0-63)
 
@@ -608,5 +618,11 @@ void w8(u8 *MEM, u16 addr, u8 v) {
 				*/
 			}
 		break;
+	} // switch
+
+	if (addr <= 0x8000) {
+		//writefln("LOL");
+	} else {
+		MEM[addr] = v;
 	}
 }

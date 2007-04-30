@@ -6,7 +6,7 @@ import gameboy.tables, gameboy.memory;
 import std.stdio, std.string, std.stream, std.c.stdlib, std.zlib, std.system;
 
 //version = trace_all;
-//version = trace;
+version = trace;
 
 /*
 	References:
@@ -126,15 +126,17 @@ class GameBoy {
 			"AF:%04X " "BC:%04X "
 			"DE:%04X " "HL:%04X "
 			"| SP:%04X " "| PC:%04X " "| IME:%02X | "
-			"C%d " "H%d "
-			"N%d " "Z%d ",
+			"Z%d " "N%d "
+			"H%d " "C%d ",
 			AF, BC, DE, HL,
 			SP, PC, IME,
-			CF, HF, NF, ZF
+			ZF, NF, HF, CF
 		);
 		writefln("STACK {");
-			for (int n = SP + 2; n <= SP + 12; n += 2) {
-				writefln("  %04X: %04X", n, *cast(u16 *)&MEM[n]);
+			for (int n = SP - 12; n <= SP + 18; n += 2) {
+				if (n < 0xFFFE) {
+					writefln("  %04X: %04X", n, r16(MEM.ptr, n));
+				}
 			}
 		writefln("}");
 	}
@@ -178,6 +180,7 @@ class GameBoy {
 	void loadRom(char[] name) { loadRom(new File(name, FileMode.In)); }
 	void loadRom(Stream s) {
 		rom = s;
+		rom.position = 0;
 		rom.readExact(&MEM[0], 0x4000);
 		switchBank2(1);
 		rh = cast(RomHeader *)(&MEM[0x100]);
@@ -365,6 +368,33 @@ class GameBoy {
 			CPC = PC;
 			jump = false;
 
+			/*
+			if (PC == 0x2A0) { RegDump(); }
+			if (PC == 0x2A3) { RegDump(); }
+			if (PC == 0x2A6) { RegDump(); }
+			if (PC == 0x2BA) { RegDump(); }
+			if (PC == 0x2C4) { RegDump(); }
+			if (PC == 0x29D7) { RegDump(); }
+			if (PC == 0x29D9) { RegDump(); }
+			if (PC == 0x29E0) { RegDump(); }
+				*/
+			//if (PC == 0x02CD) { RegDump(); exit(-1); }
+			//if (PC == 0x028) { RegDump(); exit(-1); }
+
+			//if (PC >= 0x028 && PC < 0x033) { RegDump(); }
+
+			//if (PC == 0x0369) { RegDump(); }
+			//if (PC == 0x2820) { RegDump(); }
+			//if (PC >= 0x2820 && PC < 0x282A) { RegDump(); }
+			//if (PC == 0x282A) { RegDump(); exit(-1); }
+			//if (PC == 0x02F8) { RegDump(); exit(-1); }
+			//if (PC == 0x02B4) { RegDump(); exit(-1); }
+
+			//if (PC == 0x2838) { RegDump(); exit(-1); }
+
+			//if (PC == 0x036C) { RegDump(); exit(-1); }
+			//if (PC == 0x36F) { RegDump(); exit(-1); }
+
 			// Decodificamos la instrucción
 			op = MEM[PC++];
 
@@ -442,7 +472,7 @@ class GameBoy {
 								switch (op & 0b1111) {
 									case 0b0001: TRACE(format("LD r%d, %04X", r16, pu16)); setr16(r16, pu16); break;
 									case 0b0011: TRACE(format("INC r%d", r16));     { u16 v = getr16(r16); INC(&v);   setr16(r16, v); } break;
-									case 0b1001: TRACE(format("ADD HL, r%d", r16)); ADDHL(getr8(r16)); break;
+									case 0b1001: TRACE(format("ADD HL, r%d", r16)); ADDHL(getr16(r16)); break;
 									case 0b1011: TRACE(format("DEC r%d", r16));     { u16 v = getr16(r16); DEC(&v);   setr16(r16, v); } break;
 								}
 							} break;
@@ -515,8 +545,10 @@ class GameBoy {
 							break;
 							case 0b001:
 								if ((r23 & 0b001) == 0) {
-									TRACE(format("POP r", r22));
+									TRACE(format("POP r%d", r22));
+									//TRACE(format("POP r : %04X", getr16(r22)));
 									setr16(r22, POP16());
+									//TRACE(format("POP r : %04X", getr16(r22)));
 								} else {
 									switch (r22) {
 										case 0b00: TRACE("RET"); RET();   break;
@@ -654,7 +686,7 @@ class GameBoy {
 
 // --- INSTRUCCIONES ----------------------------------------------------------
 	void NOP() { }
-	void AND(u8 v) { A &= v; ZF = (A == 0); NF = false; HF = false; CF = false; } // Logical AND
+	void AND(u8 v) { A &= v; ZF = (A == 0); NF = false; HF = true ; CF = false; } // Logical AND
 	void OR (u8 v) { A |= v; ZF = (A == 0); NF = false; HF = false; CF = false; } // Logical OR
 	void XOR(u8 v) { A ^= v; ZF = (A == 0); NF = false; HF = false; CF = false; } // Logical XOR
 	void CP (u8 v) {
@@ -666,64 +698,29 @@ class GameBoy {
 
 	void HALT() {
 		exit(-1);
-/*
-   If IME = False Then Exit Sub
-    temp_var = RAM(65535, 0) And RAM(65295, 0)    ' AND IE, IF
-    If temp_var = 0 Then PC = PC - 1: Exit Sub                  'If no Interrupt occured exit
-    'Process Interrput
-    'Push pc
-    SP = SP - 1
-    WriteM SP, PC \ 256
-    SP = SP - 1
-    WriteM SP, PC And 255
-    IME = False
-    If (temp_var And 1) = 1 Then        'V-Blank ?
-        PC = 64
-        RAM(65295, 0) = RAM(65295, 0) And 254
-    ElseIf (temp_var And 2) = 2 Then    'LCDC ?
-        PC = 72
-        RAM(65295, 0) = RAM(65295, 0) And 253
-    ElseIf (temp_var And 4) = 4 Then    'Timer ?
-        PC = 80
-        RAM(65295, 0) = RAM(65295, 0) And 251
-    ElseIf (temp_var And 8) = 8 Then    'Serial ?
-        PC = 88
-        RAM(65295, 0) = RAM(65295, 0) And 247
-    ElseIf (temp_var And 16) = 16 Then  'Joypad ?
-        PC = 96
-        RAM(65295, 0) = RAM(65295, 0) And 239
-    End If
-*/
 	}
 
 	void STOP() {
 		exit(-1);
 	}
 
-	void INC(u8*  r) {
-		(*r)++;
-		NF = false;
-		ZF = (*r == 0);
-		HF = ((*r & 0b1111) == 0);
-	}
 	void INC(u16* r) { (*r)++; }
-	void DEC(u8*  r) {
-		(*r)--;
-		NF = true;
-		ZF = (*r == 0);
-		HF = ((*r & 0b1111) < ((*r + 1) & 0b1111));
+	void INC(u8*  r) {
+		(*r)++; NF = false; ZF = (*r == 0);
+		HF = ((*r & 0b1111) == 0b0000);
 	}
+
 	void DEC(u16* r) { (*r)--; }
+	void DEC(u8*  r) {
+		(*r)--; NF = true; ZF = (*r == 0);
+		HF = ((*r & 0b1111) == 0b1111);
+	}
 
-	void ADD(u8  v) { A += v; }
-	void ADD(u16 v) { A += v; }
-	void ADC(u8  v) { A += v; }
-	void ADC(u16 v) { A += v; }
+	void ADD(u8  v) { CF = (cast(u16)A + cast(u16)v > 0xFF); HF = (cast(u16)(A & 0xF) + cast(u16)(v & 0xF) > 0xF); A += v; NF = false; ZF = (A == 0); }
+	void ADC(u8  v) { CF = ((cast(u16)A + cast(u16)v + cast(u16)CF) > 0xFF); HF = ((cast(u16)(A & 0xF) + cast(u16)(v & 0xF) + CF) > 0xF); A += v + CF; NF = false; ZF = (A == 0); }
 
-	void SUB(u8  v) { A -= v; }
-	void SUB(u16 v) { A -= v; }
-	void SBC(u8  v) { A -= v; }
-	void SBC(u16 v) { A -= v; }
+	void SUB(u8  v) { CF = ((cast(u16)A) < ((cast(u16)A) - v)); HF = (((cast(u16)A) & 0x0F) < (((cast(u16)A) - v) & 0x0F)); A -= v; ZF = (A == 0); NF = true; }
+	void SBC(u8  v) { CF = ((cast(u16)A) < ((cast(u16)A) - v - CF)); HF = (((cast(u16)A) & 0x0F) < (((cast(u16)A) - v - CF) & 0x0F)); A -= v; ZF = (A == 0); NF = true; }
 
 	void ADDHL(u8  v) { HL += v; }
 	void ADDHL(u16 v) { HL += v; }
@@ -737,13 +734,7 @@ class GameBoy {
 	void RR  (u8 *r) { exit(-1); } // Roate Right thru carry
 	void SLA (u8 *r) { CF = (*r & 0b10000000) != 0; *r <<= 1; ZF = (*r == 0); HF = false; NF = false; } // Shift Left
 	void SRA (u8 *r) { exit(-1); } // Shift Right
-	/*
-	    cf = reg8 \ 128
-	    reg8 = (reg8 * 2) And 255
-	    setZ reg8 = 0
-	    hf = 0
-	    nf = 0
-	*/
+
 	void SWAP(u8 *r) {
 		*r = ((*r >> 4) & 0b1111) | ((*r << 4) & 0b11110000);
 		ZF = (*r == 0);
@@ -757,32 +748,12 @@ class GameBoy {
 	void RES(u8 bit, u8 *r) { *r &= ~(1 << bit); }
 	void SET(u8 bit, u8 *r) { *r |=  (1 << bit); }
 
-	void PUSH16(u16 v) { *cast(u16*)(&MEM[SP]) = v; SP -= 2; }
-	void POP16(u16 *r) { SP += 2; *r = *cast(u16*)(&MEM[SP]); }
+	void PUSH16(u16 v) { SP -= 2; *cast(u16*)(&MEM[SP]) = v; }
+	void POP16(u16 *r) { *r = *cast(u16*)(&MEM[SP]); SP += 2; }
 
-	u16 POP16() { SP += 2; return *cast(u16*)(&MEM[SP]); }
-
-	/*
-	void RLCA() { RLC(&A); }
-	void RRCA() { RRC(&A); }
-	void RLA () { RL(&A); }
-	void RRA () { RR(&A); }
-	*/
+	u16 POP16() { u16 rv = *cast(u16*)(&MEM[SP]); SP += 2; return rv; }
 
 	void DAA () {
-		/*
-		exit(-1);
-        If hf Then
-           If ((A And 15) >= 10 Or hf) Then A = A - 6
-           If ((A And 240) >= 160 Or cf) Then A = A - 96: cf = 1
-        Else
-           If ((A And 15) >= 10 Or hf) Then A = A + 6
-           If ((A And 240) >= 160 Or cf) Then A = A + 96: cf = 1
-        End If
-        A = A And 255
-		setZ A = 0
-		hf = 0
-		*/
 		exit(-1);
 	} // Demical adjust register A
 
@@ -803,6 +774,6 @@ class GameBoy {
 	void RST(u8 v) { CALL(v << 3); } // RESTART AT
 
 	void TRACE(char[] s) {
-		//if (showinst) writefln("%s", s);
+		if (showinst) writefln("%s", s);
 	}
 }

@@ -122,6 +122,9 @@ class GBWinSDL : GameboyHostSystem {
 					if (event.key.keysym.sym == SDLK_ESCAPE) {
 						exit(-1);
 					}
+					if (event.key.keysym.sym == SDLK_d) {
+						gb.dump();
+					}
 				break;
 				default:
 				break;
@@ -130,8 +133,10 @@ class GBWinSDL : GameboyHostSystem {
 	}
 }
 
+GameBoy gb;
+
 int main(char[][] args) {
-	GameBoy gb = new GameBoy(new GBWinSDL);
+	gb = new GameBoy(new GBWinSDL);
 
 	gb.loadRom("TETRIS.GB");
 	gb.init();
