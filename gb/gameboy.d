@@ -255,7 +255,10 @@ class GameBoy {
 
 		// Si el scanline es 144, estamos ya en una línea offscreen y por tanto aprovechamos para generar
 		// la interrupción V-Blank
-		if (*scanline == 144) interrupt(0x40);
+		if (*scanline == 144) {
+			UpdateScreen();
+			interrupt(0x40);
+		}
 	}
 
 	void interrupt(u8 type) {
@@ -831,13 +834,23 @@ void GameUpdate() {
 			break;
 		}
 	}
-
-	UpdateScreen();
 }
 
 import std.c.stdio, std.c.string;
 
 void UpdateScreen() {
+	static int updates = 0;
+	static int last = 0;
+	static double fps;
+
+	updates++;
+	if (updates % 10 == 0) {
+		last = SDL_GetTicks();
+	} else if (updates % 10 == 9) {
+		fps = 10000 / cast(double)(SDL_GetTicks() - last);
+		SDL_WM_SetCaption(toStringz(format("GameBoy %4.1f fps", fps)), null);
+	}
+
 	SDL_Rect drect, srect;
 	drect.x = drect.y = 0;
 	drect.w = 160 * 2;
