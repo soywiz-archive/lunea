@@ -300,7 +300,7 @@ class GameBoy {
 			case 0x40: // V-Blank
 				if (*IE & (1 << 0)) {
 					SET(0, IF);
-					//RST(type >> 3);
+					RST(type >> 3);
 				}
 			break;
 			case 0x48: // LCD STAT
@@ -413,15 +413,21 @@ class GameBoy {
 		u8  pu8 () { return *cast(u8 *)APC; } s8  ps8 () { return *cast(s8 *)APC; }
 		u16 pu16() { return *cast(u16*)APC; } s16 ps16() { return *cast(s16*)APC; }
 
+		/*
+		disasm(mem.MEM[0x017E..0x01A2], 0x017E);
+		writef(repeat("-", 80));
+		disasm(mem.MEM[0x0040..0x0048], 0x0040);
+		writef(repeat("-", 80));
 		disasm(mem.MEM[0x02E0..0x0300], 0x02E0);
 		writef(repeat("-", 80));
+		*/
 
 		// Bucle principal
 		while (true) {
 			CPC = PC;
 
 			//printf("%04X - %s\t\t\t\r", strip(disasm(PC)));
-			if ((cycles % 0x1000) == 0) printf("%04X\r", PC);
+			if ((cycles % 0x1000) == 0) printf("PC: %04X\r", PC);
 
 			// Decodificamos la instrucción
 			op = mem.r8(PC++);
@@ -453,19 +459,19 @@ class GameBoy {
 				switch (op2 >> 6) {
 					case 0b00:
 						switch ((op2 >> 3) & 0b111) {
-							case 0b000: TRACE(format("RLC  r%d", r8)); RLC (&r8); break;
-							case 0b001: TRACE(format("RRC  r%d", r8)); RRC (&r8); break;
-							case 0b010: TRACE(format("RL   r%d", r8)); RL  (&r8); break;
-							case 0b011: TRACE(format("RR   r%d", r8)); RR  (&r8); break;
-							case 0b100: TRACE(format("SLA  r%d", r8)); SLA (&r8); break;
-							case 0b101: TRACE(format("SRA  r%d", r8)); SRA (&r8); break;
-							case 0b110: TRACE(format("SWAP r%d", r8)); SWAP(&r8); break;
-							case 0b111: TRACE(format("SRL  r%d", r8)); SRL (&r8); break;
+							case 0b000: version(trace) TRACE(format("RLC  r%d", r8)); RLC (&r8); break;
+							case 0b001: version(trace) TRACE(format("RRC  r%d", r8)); RRC (&r8); break;
+							case 0b010: version(trace) TRACE(format("RL   r%d", r8)); RL  (&r8); break;
+							case 0b011: version(trace) TRACE(format("RR   r%d", r8)); RR  (&r8); break;
+							case 0b100: version(trace) TRACE(format("SLA  r%d", r8)); SLA (&r8); break;
+							case 0b101: version(trace) TRACE(format("SRA  r%d", r8)); SRA (&r8); break;
+							case 0b110: version(trace) TRACE(format("SWAP r%d", r8)); SWAP(&r8); break;
+							case 0b111: version(trace) TRACE(format("SRL  r%d", r8)); SRL (&r8); break;
 						}
 					break;
-					case 0b01: TRACE(format("BIT %d, r%d", bit, r8)); BIT(bit, &r8); break;
-					case 0b10: TRACE(format("RES %d, r%d", bit, r8)); RES(bit, &r8); break;
-					case 0b11: TRACE(format("SET %d, r%d", bit, r8)); SET(bit, &r8); break;
+					case 0b01: version(trace) TRACE(format("BIT %d, r%d", bit, r8)); BIT(bit, &r8); break;
+					case 0b10: version(trace) TRACE(format("RES %d, r%d", bit, r8)); RES(bit, &r8); break;
+					case 0b11: version(trace) TRACE(format("SET %d, r%d", bit, r8)); SET(bit, &r8); break;
 				}
 
 				setr8(op2 & 0b111, r8);
@@ -482,23 +488,23 @@ class GameBoy {
 						switch (r13) {
 							case 0b000:
 								switch (r23) {
-									case 0b000: TRACE("NOP"); NOP();   break;
-									case 0b001: TRACE(format("LD [%04X] <- SP[%04X]", pu16, SP)); mem.w16(pu16, SP); break;
-									case 0b010: TRACE("STOP"); STOP();  break;
-									case 0b011: TRACE(format("JR %d", ps8)); JR(ps8); break;
-									case 0b100: TRACE(format("JR NZ, %d", ps8)); if (!ZF) JR(ps8); break;
-									case 0b101: TRACE(format("JR Z, %d", ps8)); if ( ZF) JR(ps8); break;
-									case 0b110: TRACE(format("JR NC, %d", ps8)); if (!CF) JR(ps8); break;
-									case 0b111: TRACE(format("JR C, %d", ps8)); if ( CF) JR(ps8); break;
+									case 0b000: version(trace) TRACE("NOP"); NOP();   break;
+									case 0b001: version(trace) TRACE(format("LD [%04X] <- SP[%04X]", pu16, SP)); mem.w16(pu16, SP); break;
+									case 0b010: version(trace) TRACE("STOP"); STOP();  break;
+									case 0b011: version(trace) TRACE(format("JR %d", ps8)); JR(ps8); break;
+									case 0b100: version(trace) TRACE(format("JR NZ, %d", ps8)); if (!ZF) JR(ps8); break;
+									case 0b101: version(trace) TRACE(format("JR Z, %d", ps8)); if ( ZF) JR(ps8); break;
+									case 0b110: version(trace) TRACE(format("JR NC, %d", ps8)); if (!CF) JR(ps8); break;
+									case 0b111: version(trace) TRACE(format("JR C, %d", ps8)); if ( CF) JR(ps8); break;
 								}
 							break;
 							case 0b001: case 0b011: {
 								u8 r16 = (op >> 4) & 0b11;
 								switch (op & 0b1111) {
-									case 0b0001: TRACE(format("LD r%d, %04X", r16, pu16)); setr16(r16, pu16); break;
-									case 0b0011: TRACE(format("INC r%d", r16));     { u16 v = getr16(r16); INC(&v);   setr16(r16, v); } break;
-									case 0b1001: TRACE(format("ADD HL, r%d", r16)); ADDHL(getr16(r16)); break;
-									case 0b1011: TRACE(format("DEC r%d", r16));     { u16 v = getr16(r16); DEC(&v);   setr16(r16, v); } break;
+									case 0b0001: version(trace) TRACE(format("LD r%d, %04X", r16, pu16)); setr16(r16, pu16); break;
+									case 0b0011: version(trace) TRACE(format("INC r%d", r16));     { u16 v = getr16(r16); INC(&v);   setr16(r16, v); } break;
+									case 0b1001: version(trace) TRACE(format("ADD HL, r%d", r16)); ADDHL(getr16(r16)); break;
+									case 0b1011: version(trace) TRACE(format("DEC r%d", r16));     { u16 v = getr16(r16); DEC(&v);   setr16(r16, v); } break;
 								}
 							} break;
 							case 0b010: { // A <- (r16), (r16) <- A
@@ -520,51 +526,53 @@ class GameBoy {
 								// BUG
 								u16 v16 = (r2 & 0b100) ? HL : getr16(r22 & 0b11);
 								if (!(r2 & 0b1)) {
-									TRACE(format("LD [%04X], A", v16));
+									version(trace) TRACE(format("LD [%04X], A", v16));
 									mem.w8(v16, A);
 								} else {
-									TRACE(format("LD A, [%04X]", v16));
+									version(trace) TRACE(format("LD A, [%04X]", v16));
 									A = mem.r8(v16);
 								}
-								if (r2 & 0b100) { if (!(r23 & 0b10)) { TRACE(format("INC HL")); INC(&HL); } else { TRACE(format("DEC HL")); DEC(&HL); } }
+								if (r2 & 0b100) { if (!(r23 & 0b10)) { version(trace) TRACE(format("INC HL")); INC(&HL); } else { TRACE(format("DEC HL")); DEC(&HL); } }
 							} break;
-							case 0b100: TRACE(format("INC r%d", r2)); { u8 v = getr8(r2); INC(&v); setr8(r2, v); } break; // INC
-							case 0b101: TRACE(format("DEC r%d", r2)); { u8 v = getr8(r2); DEC(&v); setr8(r2, v); }  break; // DEC
-							case 0b110: TRACE(format("LD r%d, %02X", r2, pu8)); setr8(r2, pu8);  break; // LD, nn
+							case 0b100: version(trace) TRACE(format("INC r%d", r2)); { u8 v = getr8(r2); INC(&v); setr8(r2, v); } break; // INC
+							case 0b101: version(trace) TRACE(format("DEC r%d", r2)); { u8 v = getr8(r2); DEC(&v); setr8(r2, v); }  break; // DEC
+							case 0b110: version(trace) TRACE(format("LD r%d, %02X", r2, pu8)); setr8(r2, pu8);  break; // LD, nn
 							case 0b111:
 								switch (r2) {
-									case 0b000: TRACE(format("RLCA")); RLC(&A); break;
-									case 0b001: TRACE(format("RRCA")); RRC(&A); break;
-									case 0b010: TRACE(format("RLA"));  RL (&A); break;
-									case 0b011: TRACE(format("RRA"));  RR (&A); break;
-									case 0b100: TRACE(format("DAA"));  DAA();   break;
-									case 0b101: TRACE(format("CPL"));  CPL();   break;
-									case 0b110: TRACE(format("SCF"));  SCF();   break;
-									case 0b111: TRACE(format("CCF"));  CCF();   break;
+									case 0b000: version(trace) TRACE(format("RLCA")); RLC(&A); break;
+									case 0b001: version(trace) TRACE(format("RRCA")); RRC(&A); break;
+									case 0b010: version(trace) TRACE(format("RLA"));  RL (&A); break;
+									case 0b011: version(trace) TRACE(format("RRA"));  RR (&A); break;
+									case 0b100: version(trace) TRACE(format("DAA"));  DAA();   break;
+									case 0b101: version(trace) TRACE(format("CPL"));  CPL();   break;
+									case 0b110: version(trace) TRACE(format("SCF"));  SCF();   break;
+									case 0b111: version(trace) TRACE(format("CCF"));  CCF();   break;
 								}
 							break;
 						}
 					} break;
 					case 0b01: { // LD REG, REG -- REG <- REG
 						if (op == 0x76) { // HALT (LD (HL), (HL))
-							TRACE(format("HALT"));
-							writefln("HALT");
+							version(trace) {
+								TRACE(format("HALT"));
+								writefln("HALT");
+							}
 							HALT();
 						} else {
-							TRACE(format("LD r%d, r%d | v:%02X", r2, r1, getr8(r1)));
+							version(trace) TRACE(format("LD r%d, r%d | v:%02X", r2, r1, getr8(r1)));
 							setr8(r2, getr8(r1));
 						}
 					} break;
 					case 0b10: { // OP A, REG
 						switch (r2) {
-							case 0b000: TRACE(format("ADD r%d", r2)); ADD(getr8(r1)); break;
-							case 0b001: TRACE(format("ADC r%d", r2)); ADC(getr8(r1)); break;
-							case 0b010: TRACE(format("SUB r%d", r2)); SUB(getr8(r1)); break;
-							case 0b011: TRACE(format("SBC r%d", r2)); SBC(getr8(r1)); break;
-							case 0b100: TRACE(format("AND r%d", r2)); AND(getr8(r1)); break;
-							case 0b101: TRACE(format("XOR r%d", r2)); XOR(getr8(r1)); break;
-							case 0b110: TRACE(format("OR  r%d", r2)); OR (getr8(r1)); break;
-							case 0b111: TRACE(format("CP  r%d", r2)); CP (getr8(r1)); break;
+							case 0b000: version(trace) TRACE(format("ADD r%d", r2)); ADD(getr8(r1)); break;
+							case 0b001: version(trace) TRACE(format("ADC r%d", r2)); ADC(getr8(r1)); break;
+							case 0b010: version(trace) TRACE(format("SUB r%d", r2)); SUB(getr8(r1)); break;
+							case 0b011: version(trace) TRACE(format("SBC r%d", r2)); SBC(getr8(r1)); break;
+							case 0b100: version(trace) TRACE(format("AND r%d", r2)); AND(getr8(r1)); break;
+							case 0b101: version(trace) TRACE(format("XOR r%d", r2)); XOR(getr8(r1)); break;
+							case 0b110: version(trace) TRACE(format("OR  r%d", r2)); OR (getr8(r1)); break;
+							case 0b111: version(trace) TRACE(format("CP  r%d", r2)); CP (getr8(r1)); break;
 						}
 					} break;
 					case 0b11: {
@@ -574,11 +582,11 @@ class GameBoy {
 									if (getflag(r23 & 0b11)) RET();
 								} else {
 									switch (r23 & 0b11) {
-										case 0b00: TRACE(format("LD [0xFF00+$%02X], A", pu8)); mem.w8(0xFF00 | pu8, A);  break; // LD ($FF00 + nn), A // special (old ret po)
-										case 0b01: TRACE(format("ADD SP, %d", ps8)); ADDSP(ps8); break; // ADD SP, dd // special (old ret pe) (nocash extended as shortint)
-										case 0b10: TRACE(format("LD A, [0xFF00+$%02X]", pu8)); A = mem.r8(0xFF00 | pu8); break; // LD A, ($FF00 + nn) // special (old ret p)
+										case 0b00: version(trace) TRACE(format("LD [0xFF00+$%02X], A", pu8)); mem.w8(0xFF00 | pu8, A);  break; // LD ($FF00 + nn), A // special (old ret po)
+										case 0b01: version(trace) TRACE(format("ADD SP, %d", ps8)); ADDSP(ps8); break; // ADD SP, dd // special (old ret pe) (nocash extended as shortint)
+										case 0b10: version(trace) TRACE(format("LD A, [0xFF00+$%02X]", pu8)); A = mem.r8(0xFF00 | pu8); break; // LD A, ($FF00 + nn) // special (old ret p)
 										case 0b11: // TODO: SET FLAGS
-											TRACE(format("LD HL, SP + %d", ps8));
+											version(trace) TRACE(format("LD HL, SP + %d", ps8));
 											HL = SP + ps8;
 										break;
 									}
@@ -586,16 +594,16 @@ class GameBoy {
 							break;
 							case 0b001:
 								if ((r23 & 0b001) == 0) {
-									TRACE(format("POP r%d", r22));
+									version(trace) TRACE(format("POP r%d", r22));
 									//TRACE(format("POP r : %04X", getr16(r22)));
 									setr16(r22, POP());
 									//TRACE(format("POP r : %04X", getr16(r22)));
 								} else {
 									switch (r22) {
-										case 0b00: TRACE("RET"); RET();   break;
-										case 0b01: TRACE("RETI"); RETI();  break;
-										case 0b10: TRACE("JP HL"); JP(HL);  break;
-										case 0b11: TRACE("LD SP, HL"); SP = HL; break;
+										case 0b00: version(trace) TRACE("RET"); RET();   break;
+										case 0b01: version(trace) TRACE("RETI"); RETI();  break;
+										case 0b10: version(trace) TRACE("JP HL"); JP(HL);  break;
+										case 0b11: version(trace) TRACE("LD SP, HL"); SP = HL; break;
 									}
 								}
 							break;
@@ -604,16 +612,16 @@ class GameBoy {
 									if (getflag(r23 & 0b11)) JP(pu16);
 								} else {
 									switch (r23 & 0b11) {
-										case 0b00: TRACE(format("LD [0xFF00+C], A"     )); mem.w8(0xFF00 | C, A); break;
-										case 0b01: TRACE(format("LD [$%04X], A",   pu16)); mem.w8(pu16, A); break;
-										case 0b10: TRACE(format("LD A, [0xFF00+C]"     )); A = mem.r8(0xFF00 | C); break;
-										case 0b11: TRACE(format("LD A, [$%04X]",   pu16)); A = mem.r8(pu16); break;
+										case 0b00: version(trace) TRACE(format("LD [0xFF00+C], A"     )); mem.w8(0xFF00 | C, A); break;
+										case 0b01: version(trace) TRACE(format("LD [$%04X], A",   pu16)); mem.w8(pu16, A); break;
+										case 0b10: version(trace) TRACE(format("LD A, [0xFF00+C]"     )); A = mem.r8(0xFF00 | C); break;
+										case 0b11: version(trace) TRACE(format("LD A, [$%04X]",   pu16)); A = mem.r8(pu16); break;
 									}
 								}
 							break;
 							case 0b011:
 								switch (r23) {
-									case 0b000: TRACE(format("JP $%04X",      pu16)); JP(pu16); break; // C3
+									case 0b000: version(trace) TRACE(format("JP $%04X",      pu16)); JP(pu16); break; // C3
 									case 0b001: writefln("F.ERROR reached '0xCB'"  ); exit(-1); break; // CB
 									case 0b010: writefln("INVALID OP (%02X)", op   ); exit(-1); break; // D3
 									case 0b011: writefln("INVALID OP (%02X)", op   ); exit(-1); break; // DB
@@ -644,14 +652,14 @@ class GameBoy {
 							break;
 							case 0b110: // ALU (C6, CE, D6, DE, E6, EE, F6, FE)
 								switch (r23) {
-									case 0b000: TRACE(format("ADD %02X", pu8)); ADD(pu8); break;
-									case 0b001: TRACE(format("ADC %02X", pu8)); ADC(pu8); break;
-									case 0b010: TRACE(format("SUB %02X", pu8)); SUB(pu8); break;
-									case 0b011: TRACE(format("SBC %02X", pu8)); SBC(pu8); break;
-									case 0b100: TRACE(format("AND %02X", pu8)); AND(pu8); break;
-									case 0b101: TRACE(format("XOR %02X", pu8)); XOR(pu8); break;
-									case 0b110: TRACE(format("OR  %02X", pu8)); OR (pu8); break;
-									case 0b111: TRACE(format("CP  %02X", pu8)); CP (pu8); break;
+									case 0b000: version(trace) TRACE(format("ADD %02X", pu8)); ADD(pu8); break;
+									case 0b001: version(trace) TRACE(format("ADC %02X", pu8)); ADC(pu8); break;
+									case 0b010: version(trace) TRACE(format("SUB %02X", pu8)); SUB(pu8); break;
+									case 0b011: version(trace) TRACE(format("SBC %02X", pu8)); SBC(pu8); break;
+									case 0b100: version(trace) TRACE(format("AND %02X", pu8)); AND(pu8); break;
+									case 0b101: version(trace) TRACE(format("XOR %02X", pu8)); XOR(pu8); break;
+									case 0b110: version(trace) TRACE(format("OR  %02X", pu8)); OR (pu8); break;
+									case 0b111: version(trace) TRACE(format("CP  %02X", pu8)); CP (pu8); break;
 								}
 							break;
 							case 0b111: // RST (C7, CF, D7, DF, E7, EF, F7, FF)
@@ -700,6 +708,7 @@ class GameBoy {
 
 		if (sign) {
 			if (cb == 1) {
+				//writefln("%d", PC + cb + cast(s8)v + 1);
 				return format(fmt, "", PC + cb + cast(s8)v + 1);
 			} else {
 				return format(fmt, "", PC + cb + cast(s16)v + 1);
@@ -710,12 +719,12 @@ class GameBoy {
 		}
 	}
 
-	static void disasm(ubyte[] data, u16 offset = 0x0000) {
+	static void disasm(ubyte[] data, u16 PC = 0x0000) {
 		u8* addr = data.ptr, dest = data.ptr + data.length;
 		while (addr < dest) {
 			u8* baddr = addr;
-			writef("%04X: ", (addr - data.ptr) + offset);
-			writef("%s [", disasm(addr));
+			writef("%04X: ", (addr - data.ptr) + PC);
+			writef("%s [", disasm(addr, PC + (addr - data.ptr)));
 			foreach (c; data[baddr - data.ptr..addr - data.ptr]) writef("%02X", c);
 			writefln("]");
 		}
@@ -734,10 +743,12 @@ class GameBoy {
 	} // ComPare with A
 
 	void HALT() {
+		writefln("--HALT");
 		exit(-1);
 	}
 
 	void STOP() {
+		writefln("--STOP");
 		exit(-1);
 	}
 
@@ -767,10 +778,10 @@ class GameBoy {
 
 	void RLC (u8 *r) { CF = (*r & 0b10000000) != 0; *r = (*r << 1) | CF; ZF = (*r == 0); HF = false; NF = false; } // Rotate Left
 	void RRC (u8 *r) { CF = (*r & 0b00000001) != 0; *r = (*r >> 1) | (CF << 7); ZF = (*r == 0); HF = false; NF = false; } // Rotate Right
-	void RL  (u8 *r) { exit(-1); } // Rotate Left thru carry
-	void RR  (u8 *r) { exit(-1); } // Roate Right thru carry
+	void RL  (u8 *r) { writefln("--RL\t"); exit(-1); } // Rotate Left thru carry
+	void RR  (u8 *r) { writefln("--RR\t"); exit(-1); } // Roate Right thru carry
 	void SLA (u8 *r) { CF = (*r & 0b10000000) != 0; *r <<= 1; ZF = (*r == 0); HF = false; NF = false; } // Shift Left
-	void SRA (u8 *r) { exit(-1); } // Shift Right
+	void SRA (u8 *r) { writefln("--SRA\t"); exit(-1); } // Shift Right
 
 	void SWAP(u8 *r) {
 		*r = ((*r >> 4) & 0b1111) | ((*r << 4) & 0b11110000);
@@ -789,12 +800,13 @@ class GameBoy {
 	u16  POP() { SP += 2; return mem.r16(SP - 2); }
 
 	void DAA () {
+		writefln("--DAA\t");
 		exit(-1);
 	} // Demical adjust register A
 
 	void CPL () { A = ~A; HF = true; NF = true; } // Logical NOT
-	void SCF () { exit(-1); }
-	void CCF () { exit(-1); }
+	void SCF () { writefln("--SCF\t"); exit(-1); }
+	void CCF () { writefln("--CCF\t"); exit(-1); }
 
 	void RET () { PC = POP(); } // RETURN
 	void RETI() { RET(); IME = true; } // RETURN INTERRUPT

@@ -7,6 +7,8 @@ import gameboy.keypad;
 import std.stdio, std.string, std.stream, std.c.stdlib, std.zlib;
 import std.c.stdio, std.c.string;
 
+version = MTRACE;
+
 class Memory {
 	u8 MEM[0x10000];
 	bool MEM_TRACED[0x10000];
@@ -69,6 +71,13 @@ class Memory {
 
 	// Escritura de 8 bits en memoria
 	void w8(u16 addr, u8 v) {
+		switch (addr) {
+			case 0xFF00: pad.Write(v); break;
+			default: *cast(u8 *)(MEM.ptr + addr) = v;
+		}
+	}
+
+	void w8_debug(u16 addr, u8 v) {
 		//scope(exit) { MEM_TRACED[addr] = true; }
 
 		//MEMTRACE(addr, format("WRITE %04X <- %02X (%08b)", addr, v, v));
@@ -585,6 +594,7 @@ class Memory {
 						break;
 					}
 				} else if (addr < 0xFFFF) { // FF80-FFFE High RAM (HRAM)
+					//writefln("---%04X <- %02X", addr, v);
 					//MEMTRACE(addr, "WRITE HRAM");
 				} else { // FFFF Interrupt Enable Register
 					MEMTRACE(addr, format("WRITE INTERRUPT ENABLE -> %08b", v));
