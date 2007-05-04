@@ -173,7 +173,7 @@ class Memory {
 						break;
 					// INTERRUPTS
 						case 0xFF0F: // FF0F - IF - Interrupt Flag (R/W)
-							MEMTRACE(addr, "WRITE INTERRUPT FLAG");
+							MEMTRACE(addr, format("WRITE INTERRUPT FLAG -> %08b", v));
 							/*
 							Bit 0: V-Blank  Interrupt Request (INT 40h)  (1=Request)
 							Bit 1: LCD STAT Interrupt Request (INT 48h)  (1=Request)
@@ -346,6 +346,17 @@ class Memory {
 							Bit 7   - Initial (1=Restart Sound)     (Write Only)
 							Bit 6   - Counter/consecutive selection (Read/Write)
 									 (1=Stop output when length in NR31 expires)
+							Bit 2-0 - Frequency's higher 3 bits (x) (Write Only)
+
+							Frequency = 4194304/(64*(2048-x)) Hz = 65536/(2048-x) Hz
+							*/
+						break;
+						case 0xFF1E: // FF1E - NR34 - Channel 3 Frequency's higher data (R/W)
+							MEMTRACE(addr, "WRITE SOUND WAVE");
+							/*
+							Bit 7   - Initial (1=Restart Sound)     (Write Only)
+							Bit 6   - Counter/consecutive selection (Read/Write)
+							          (1=Stop output when length in NR31 expires)
 							Bit 2-0 - Frequency's higher 3 bits (x) (Write Only)
 
 							Frequency = 4194304/(64*(2048-x)) Hz = 65536/(2048-x) Hz
@@ -576,7 +587,7 @@ class Memory {
 				} else if (addr < 0xFFFF) { // FF80-FFFE High RAM (HRAM)
 					//MEMTRACE(addr, "WRITE HRAM");
 				} else { // FFFF Interrupt Enable Register
-					MEMTRACE(addr, "WRITE INTERRUPT ENABLE");
+					MEMTRACE(addr, format("WRITE INTERRUPT ENABLE -> %08b", v));
 					/*
 					Bit 0: V-Blank  Interrupt Enable  (INT 40h)  (1=Enable)
 					Bit 1: LCD STAT Interrupt Enable  (INT 48h)  (1=Enable)

@@ -227,6 +227,7 @@ class GameBoy {
 	// generalmente los emuladores la vacían a 0. Aún así, los propios juegos deben
 	// definir la memória que quieran usar.
 	void init() {
+		writef(repeat("-", 80));
 		AF = 0x01B0; BC = 0x0013;
 		DE = 0x00D8; HL = 0x014D;
 		SP = 0xFFFE; PC = 0x0100;
@@ -261,6 +262,7 @@ class GameBoy {
 		mem.w8(0xFF4A, 0x00); // WY
 		mem.w8(0xFF4B, 0x00); // WX
 		mem.w8(0xFFFF, 0x00); // IE
+		writef(repeat("-", 80));
 	}
 
 	// Un VBLANK se ejecuta 59.7 veces por segundo en la GB y 61.1 en SGB
@@ -298,26 +300,31 @@ class GameBoy {
 			case 0x40: // V-Blank
 				if (*IE & (1 << 0)) {
 					SET(0, IF);
+					//RST(type >> 3);
 				}
 			break;
 			case 0x48: // LCD STAT
 				if (*IE & (1 << 1)) {
 					SET(1, IF);
+					RST(type >> 3);
 				}
 			break;
 			case 0x50: // Timer
 				if (*IE & (1 << 2)) {
 					SET(2, IF);
+					RST(type >> 3);
 				}
 			break;
 			case 0x58: // Serial
 				if (*IE & (1 << 3)) {
 					SET(3, IF);
+					RST(type >> 3);
 				}
 			break;
 			case 0x60: // Joypad
 				if (*IE & (1 << 4)) {
 					SET(4, IF);
+					RST(type >> 3);
 				}
 			break;
 		} // switch
@@ -406,9 +413,15 @@ class GameBoy {
 		u8  pu8 () { return *cast(u8 *)APC; } s8  ps8 () { return *cast(s8 *)APC; }
 		u16 pu16() { return *cast(u16*)APC; } s16 ps16() { return *cast(s16*)APC; }
 
+		disasm(mem.MEM[0x02E0..0x0300], 0x02E0);
+		writef(repeat("-", 80));
+
 		// Bucle principal
 		while (true) {
 			CPC = PC;
+
+			//printf("%04X - %s\t\t\t\r", strip(disasm(PC)));
+			if ((cycles % 0x1000) == 0) printf("%04X\r", PC);
 
 			// Decodificamos la instrucción
 			op = mem.r8(PC++);
@@ -654,6 +667,11 @@ class GameBoy {
 	} // function
 
 // --- DESENSAMBLADO ----------------------------------------------------------
+
+	char[] disasm(u16 PC) {
+		u8* ptr = &mem.MEM[PC];
+		return disasm(ptr, PC);
+	}
 
 	static char[] disasm(inout u8* addr, u16 PC = 0) {
 		bool sign = false;
