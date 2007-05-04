@@ -1,4 +1,5 @@
 import gameboy.z80;
+import gameboy.keypad;
 import SDL;
 import std.c.windows.windows;
 import std.c.stdio, std.c.string;
@@ -11,12 +12,18 @@ extern (C) {
 }
 
 class GBWinSDL : GameboyHostSystem {
+	GameBoy gb;
+
 	void Sleep1() {
 		Sleep(1);
 	}
 
 	SDL_Surface* buffer;
 	SDL_Surface* screen;
+
+	void attach(GameBoy gb) {
+		this.gb = gb;
+	}
 
 	this() {
 		if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) throw(new Exception("Unable to initialize SDL"));
@@ -124,6 +131,30 @@ class GBWinSDL : GameboyHostSystem {
 					}
 					if (event.key.keysym.sym == SDLK_d) {
 						gb.dump();
+					}
+
+					{
+						bool set = true;;
+						KeyPAD.Key key;
+						switch (event.key.keysym.sym) {
+							case SDLK_LEFT:   key = KeyPAD.Key.LEFT;   break;
+							case SDLK_RIGHT:  key = KeyPAD.Key.RIGHT;  break;
+							case SDLK_UP:     key = KeyPAD.Key.UP;     break;
+							case SDLK_DOWN:   key = KeyPAD.Key.DOWN;   break;
+							case SDLK_z:      key = KeyPAD.Key.A;      break;
+							case SDLK_x:      key = KeyPAD.Key.B;      break;
+							case SDLK_RETURN: key = KeyPAD.Key.START;  break;
+							case SDLK_SPACE:  key = KeyPAD.Key.SELECT; break;
+							default: set = false; break;
+						}
+
+						if (set) {
+							if (event.type == SDL_KEYDOWN) {
+								gb.pad.Press(key);
+							} else {
+								gb.pad.Release(key);
+							}
+						}
 					}
 				break;
 				default:

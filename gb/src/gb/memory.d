@@ -2,12 +2,15 @@ module gameboy.memory;
 
 import gameboy.common;
 
+import gameboy.keypad;
+
 import std.stdio, std.string, std.stream, std.c.stdlib, std.zlib;
 import std.c.stdio, std.c.string;
 
 class Memory {
 	u8 MEM[0x10000];
 	bool MEM_TRACED[0x10000];
+	KeyPAD pad;
 
 	this() {
 		memset(MEM.ptr, 0, MEM.length);
@@ -26,9 +29,9 @@ class Memory {
 	}
 
 	void MEMTRACE(int addr, char[] s, bool critical = false) {
-		/*if (addr >= 0xFF00 || critical) {
+		if (addr >= 0xFF00 || critical) {
 			writefln("%s", s);
-		}*/
+		}
 	}
 
 	void* addr(u16 addr) {
@@ -42,24 +45,25 @@ class Memory {
 	// Lectura de 8 bits en memoria
 	u8 r8(u16 addr) {
 		//scope(exit) { MEM_TRACED[addr] = true; }
-		MEMTRACE(addr, format("READ %04X -> %02X", addr, MEM[addr]));
+		//MEMTRACE(addr, format("READ %04X -> %02X", addr, MEM[addr]));
 
-		if (addr == 0xFF00) return 0b11001111;
-
-		return *cast(u8 *)(MEM.ptr + addr);
+		switch (addr) {
+			case 0xFF00: return pad.Read();
+			default: return *cast(u8 *)(MEM.ptr + addr);
+		}
 	}
 
 	// Lectura de 16 bits en memoria
 	u16 r16(u16 addr) {
 		//scope(exit) { MEM_TRACED[addr] = true; }
-		MEMTRACE(addr, format("READ %04X -> %02X", addr, MEM[addr]));
+		//MEMTRACE(addr, format("READ %04X -> %02X", addr, MEM[addr]));
 		return *cast(u16 *)(MEM.ptr + addr);
 	}
 
 	// Escritura de 8 bits en memoria
 	void w16(u16 addr, u16 v) {
 		//scope(exit) { MEM_TRACED[addr] = true; }
-		MEMTRACE(addr, format("WRITE %04X <- %04X", addr, v));
+		//MEMTRACE(addr, format("WRITE %04X <- %04X", addr, v));
 		*cast(u16 *)(MEM.ptr + addr) = v;
 	}
 
@@ -67,7 +71,7 @@ class Memory {
 	void w8(u16 addr, u8 v) {
 		//scope(exit) { MEM_TRACED[addr] = true; }
 
-		MEMTRACE(addr, format("WRITE %04X <- %02X (%08b)", addr, v, v));
+		//MEMTRACE(addr, format("WRITE %04X <- %02X (%08b)", addr, v, v));
 
 		switch (addr >> 12) {
 			// ROM0
@@ -107,7 +111,7 @@ class Memory {
 			// FF80-FFFE   High RAM (HRAM)
 			// FFFF        Interrupt Enable Register
 			case 0xE: case 0xF:
-				MEMTRACE(addr, "WRITE DMA");
+				//MEMTRACE(addr, "WRITE DMA");
 				// ECHO
 				if (addr < 0xFE00) { // E000-FDFF   Same as C000-DDFF (ECHO)    (typically not used)
 					MEMTRACE(addr, "WRITE WRAM 0 (ECHO)");
@@ -122,21 +126,7 @@ class Memory {
 					// DMA (Direct Memory Access)
 					switch (addr) {
 					// INPUT (Joypad Input)
-						case 0xFF00: // FF00 - P1/JOYP - Joypad (R/W)
-							MEMTRACE(addr, "WRITE JOYPAD");
-							/*
-							The eight gameboy buttons/direction keys are arranged in form of a 2x4 matrix. Select either button or direction keys by writing to this register, then read-out bit 0-3.
-
-							Bit 7 - Not used
-							Bit 6 - Not used
-							Bit 5 - P15 Select Button Keys      (0=Select)
-							Bit 4 - P14 Select Direction Keys   (0=Select)
-							Bit 3 - P13 Input Down  or Start    (0=Pressed) (Read Only)
-							Bit 2 - P12 Input Up    or Select   (0=Pressed) (Read Only)
-							Bit 1 - P11 Input Left  or Button B (0=Pressed) (Read Only)
-							Bit 0 - P10 Input Right or Button A (0=Pressed) (Read Only)
-							*/
-						break;
+						case 0xFF00: pad.Write(v); break; // FF00 - P1/JOYP - Joypad (R/W)
 					// SERIAL (Serial Data Transfer (Link Cable))
 						case 0xFF01: // FF01 - SB - Serial transfer data (R/W)
 							MEMTRACE(addr, "WRITE SERIAL DATA");
@@ -153,25 +143,25 @@ class Memory {
 							*/
 						break;
 						case 0xFF04: //FF04 - DIV - Divider Register (R/W)
-							MEMTRACE(addr, "WRITE DIVIDE REGISTER");
+							MEMTRACE(addr, format("WRITE DIVIDE REGISTER -> %02X", v));
 							/*
 							This register is incremented at rate of 16384Hz (~16779Hz on SGB). In CGB Double Speed Mode it is incremented twice as fast, ie. at 32768Hz. Writing any value to this register resets it to 00h.
 							*/
 						break;
 						case 0xFF05: //FF05 - TIMA - Timer counter (R/W)
-							MEMTRACE(addr, "WRITE TIMER COUNTER");
+							MEMTRACE(addr, format("WRITE TIMER COUNTER -> %02X", v));
 							/*
 							This timer is incremented by a clock frequency specified by the TAC register ($FF07). When the value overflows (gets bigger than FFh) then it will be reset to the value specified in TMA (FF06), and an interrupt will be requested, as described below.
 							*/
 						break;
 						case 0xFF06: //FF06 - TMA - Timer Modulo (R/W)
-							MEMTRACE(addr, "WRITE TIMER RELOAD");
+							MEMTRACE(addr, format("WRITE TIMER RELOAD(MODULO) -> %02X", v));
 							/*
 							When the TIMA overflows, this data will be loaded.
 							*/
 						break;
 						case 0xFF07: //FF07 - TAC - Timer Control (R/W)
-							MEMTRACE(addr, "WRITE TMER CTRL");
+							MEMTRACE(addr, format("WRITE TIMER CTRL -> %02X", v));
 							/*
 							Bit 2    - Timer Stop  (0=Stop, 1=Start)
 							Bits 1-0 - Input Clock Select
@@ -575,10 +565,8 @@ class Memory {
 							*/
 						break;
 						default:
-							if (addr >= 0xFF00 && addr <= 0xFF7F) {
+							if (addr >= 0xFF00) {
 								MEMTRACE(addr, format("WRITING I/O PORTS (%04X)", addr));
-							} else if (addr >= 0xFF80) {
-								MEMTRACE(addr, format("WRITING HRAM (%04X)", addr));
 							} else {
 								writefln("UNKNOWN ADDRESS $%04X", addr);
 								exit(-1);
@@ -586,7 +574,7 @@ class Memory {
 						break;
 					}
 				} else if (addr < 0xFFFF) { // FF80-FFFE High RAM (HRAM)
-					MEMTRACE(addr, "WRITE HRAM");
+					//MEMTRACE(addr, "WRITE HRAM");
 				} else { // FFFF Interrupt Enable Register
 					MEMTRACE(addr, "WRITE INTERRUPT ENABLE");
 					/*

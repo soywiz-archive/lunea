@@ -3,12 +3,13 @@ module gameboy.z80;
 public import gameboy.common;
 
 import gameboy.lcd;
+import gameboy.keypad;
 import gameboy.memory;
 
 import std.stdio, std.string, std.stream, std.c.stdlib, std.zlib, std.system;
 
 // Diferentes versiones (depuración etc.)
-version = trace;
+//version = trace;
 
 /*
 	References:
@@ -48,6 +49,24 @@ version = trace;
 	HL    H    L    HL
 	SP    -    -    Stack Pointer
 	PC    -    -    Program Counter/Pointer
+
+	Flags:
+	C - Carry Flag
+	H - Half-Carry Flag
+	N - Add-Sub Flag
+	Z - Zero Flag
+*/
+
+/*
+
+GB  - GameBoy
+SGB - SuperGameBoy - Cartuchos de GameBoy usados en la SuperNintendo (SNES). El clock se aumenta, y existe
+      la posibilidad de ponerle un borde al juego, que se añade en juegos compatibles. Añade también la posibilidad
+      de paletas de color.
+CGB - GameBoyColor. Se duplica la velocidad del reloj. La pantalla soporta 15bits de colores; 5 bits por registro.
+
+Ni la SuperGameBoy ni la GameBoyColor están planeadas soportarse por ahora.
+
 */
 
 // Interface usado para mantener la portabilidad entre diferentes plataformas y sistemas
@@ -55,6 +74,7 @@ interface GameboyHostSystem {
 	void Sleep1();
 	void UpdateScreen(int type, u8* LCDSCR);
 	void KeepAlive();
+	void attach(GameBoy gb);
 }
 
 // Clase encargada de emular una GameBoy
@@ -64,6 +84,9 @@ class GameBoy {
 		this.ghs = ghs;        // GameboyHostSystem
 		this.lcd = new LCD;    // Display LCD
 		this.mem = new Memory; // Memoria
+		this.pad = new KeyPAD; // KeyPAD
+		ghs.attach(this);
+		this.mem.pad = this.pad;
 	}
 
 	// Al borrar la instancia
@@ -95,6 +118,7 @@ class GameBoy {
 	RomHeader *rh; // Header
 	Memory    mem; // Memoria
 	LCD       lcd; // LCD
+	KeyPAD    pad; // KeyPAD
 
 	// Registros
 	static if (endian == Endian.BigEndian) {
@@ -181,24 +205,27 @@ class GameBoy {
 	void loadRom(char[] name) { loadRom(new File(name, FileMode.In)); }
 	void loadRom(Stream s) {
 		rom = s;
-		switchBank0(0);
-		switchBank1(1);
+		switchRomBank0(0);
+		switchRomBank1(1);
 		rh = cast(RomHeader *)(mem.addr(0x100));
 	}
 
-	// Elegimos el banco0 (será fijo siempre)
-	void switchBank0(u8 bank) {
+	// Elegimos el banco0 de la rom (será fijo siempre)
+	void switchRomBank0(u8 bank) {
 		rom.position = 0x4000 * bank;
 		rom.readExact(mem.addr8(0x0000), 0x4000);
 	}
 
-	// Elegimos el banco1 (se puede cambiar para roms mayores de 32K)
-	void switchBank1(u8 bank) {
+	// Elegimos el banco1 de la rom (se puede cambiar para roms mayores de 32K)
+	void switchRomBank1(u8 bank) {
 		rom.position = 0x4000 * bank;
 		rom.readExact(mem.addr8(0x4000), 0x4000);
 	}
 
-	// Inicializamos la emulación
+	// Inicializamos la emulación y establecemos ciertas zona de memória y el valor
+	// de los registros. El resto de la memória puede contener cualquier valor, aunque
+	// generalmente los emuladores la vacían a 0. Aún así, los propios juegos deben
+	// definir la memória que quieran usar.
 	void init() {
 		AF = 0x01B0; BC = 0x0013;
 		DE = 0x00D8; HL = 0x014D;
@@ -548,7 +575,7 @@ class GameBoy {
 								if ((r23 & 0b001) == 0) {
 									TRACE(format("POP r%d", r22));
 									//TRACE(format("POP r : %04X", getr16(r22)));
-									setr16(r22, POP16());
+									setr16(r22, POP());
 									//TRACE(format("POP r : %04X", getr16(r22)));
 								} else {
 									switch (r22) {
@@ -592,7 +619,7 @@ class GameBoy {
 							break;
 							case 0b101:
 								if ((r23 & 0b001) == 0) {
-									PUSH16(getr16(r22));
+									PUSH(getr16(r22));
 								} else {
 									switch (r22) {
 										case 0b00: CALL(pu16); break;
@@ -740,8 +767,8 @@ class GameBoy {
 	void RES(u8 bit, u8 *r) { *r &= ~(1 << bit); }
 	void SET(u8 bit, u8 *r) { *r |=  (1 << bit); }
 
-	void PUSH16(u16 v) { SP -= 2; mem.w16(SP, v); }
-	u16  POP16() { SP += 2; return mem.r16(SP - 2); }
+	void PUSH(u16 v) { SP -= 2; mem.w16(SP, v); }
+	u16  POP() { SP += 2; return mem.r16(SP - 2); }
 
 	void DAA () {
 		exit(-1);
@@ -751,7 +778,7 @@ class GameBoy {
 	void SCF () { exit(-1); }
 	void CCF () { exit(-1); }
 
-	void RET () { PC = POP16(); } // RETURN
+	void RET () { PC = POP(); } // RETURN
 	void RETI() { RET(); IME = true; } // RETURN INTERRUPT
 
 	void JR(s8  disp) { PC += disp; } // JUMP LOCAL TO
@@ -760,7 +787,7 @@ class GameBoy {
 	void DI() { IME = false; } // DISABLE INTERRUPTS
 	void EI() { IME = true ; } // ENABLE INTERRUPTS
 
-	void CALL(u16 addr) { PUSH16(PC); JP(addr); } // CALL
+	void CALL(u16 addr) { PUSH(PC); JP(addr); } // CALL
 	void RST(u8 v) { CALL(v << 3); } // RESTART AT
 
 	void TRACE(char[] s) {
