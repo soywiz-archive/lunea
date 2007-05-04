@@ -66,8 +66,6 @@ class LCD {
 			u8 A = RAM[0xFE00 + n * 4 + 3];
 
 			DrawSprite(cast(u16*)&RAM[0x8000 + N * 0x10], 0, cast(int)(X) - 0x08, cast(int)(Y) - 0x10);
-
-			if (n == 8) printf("\t\t%02X %02X %02X %02X\r", X, Y, N, A);
 		}
 	}
 }

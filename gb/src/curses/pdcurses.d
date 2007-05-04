@@ -52,6 +52,7 @@ extern(C) {
 	int	wrefresh(WINDOW *);
 	int	wmove(WINDOW *, int, int);
 	int	wprintw(WINDOW *, char *, ...);
+	int	wcolor_set(WINDOW *, short, void *);
 }
 
 class Console {
@@ -61,6 +62,9 @@ class Console {
 	this(bool autorefresh = false) {
 		this.win = initscr();
 		this.autorefresh = autorefresh;
+	}
+
+	void color_set() {
 	}
 
 	void move(int y, int x) {

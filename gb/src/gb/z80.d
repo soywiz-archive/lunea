@@ -95,7 +95,15 @@ class GameBoy {
 
 	// Al borrar la instancia
 	~this() {
+		console.clear();
+		console.refresh();
 		//dump();
+	}
+
+	bool pexit = false;
+
+	void close() {
+		pexit = true;
 	}
 
 	// Cabecera de la ROM en la posición 0x100
@@ -326,15 +334,34 @@ class GameBoy {
 	}
 
 	// Crea una dump de memória
+	void save(Stream s) {
+		writef("Saving...");
+		mem.save(s);
+		s.writeExact(&A, (&IME - &A) + IME.sizeof);
+		writefln("Ok");
+	}
+
+	void save(char[] name) {
+		File f = new File(name, FileMode.OutNew);
+		save(f);
+		f.close();
+	}
+
+	void load(Stream s) {
+		writef("Loading...");
+		mem.load(s);
+		s.readExact(&A, (&IME - &A) + IME.sizeof);
+		writefln("Ok");
+	}
+
+	void load(char[] name) {
+		File f = new File(name, FileMode.In);
+		load(f);
+		f.close();
+	}
+
 	void dump() {
-		writefln("dumping...");
-		File save = new File("dump", FileMode.OutNew);
-		try {
-			mem.save(save);
-			save.writeExact(&A, (&IME - &A) + IME.sizeof);
-		} finally {
-			save.close();
-		}
+		save("dump");
 	}
 
 	void updateStatus() {
@@ -345,14 +372,25 @@ class GameBoy {
 		console.move(2, 0);
 		console.print(repeat("-", 80));
 
-		for (int y = 0, n = 0; y < 5; y++) {
+		for (int y = 0, n = 0xFE00; y < 5; y++) {
 			console.move(3 + y, 0);
+
+			console.print(format("%04X: [", n));
+
 			for (int x = 0; x < 16; x++) {
-				console.print(format("%02X ", mem.r8(n + x)));
+				if (x != 0) console.print(" ");
+				console.print(format("%02X", mem.r8(n + x)));
 			}
-			for (int x = 0; x < 16; x++, n++) {
-				console.addch(mem.r8(n + x));
+
+			console.print(format("] ["));
+
+			for (int x = 0; x < 16; x++) {
+				u8 b = mem.r8(n + x);
+				console.addch(b);
 			}
+
+			console.print(format("]"));
+
 			n += 16;
 		}
 
@@ -442,7 +480,7 @@ class GameBoy {
 		*/
 
 		// Bucle principal
-		while (true) {
+		while (!pexit) {
 			CPC = PC;
 
 			//printf("%04X - %s\t\t\t\r", strip(disasm(PC)));

@@ -125,14 +125,21 @@ class GBWinSDL : GameboyHostSystem {
 				case SDL_MOUSEBUTTONUP:
 				break;
 				case SDL_KEYDOWN:
-				case SDL_KEYUP:
 					if (event.key.keysym.sym == SDLK_ESCAPE) {
-						exit(-1);
-					}
-					if (event.key.keysym.sym == SDLK_d) {
-						gb.dump();
+						gb.close();
 					}
 
+					if (event.key.keysym.sym == SDLK_F1) gb.save("dump.1");
+					if (event.key.keysym.sym == SDLK_F2) gb.save("dump.2");
+					if (event.key.keysym.sym == SDLK_F3) gb.save("dump.3");
+					if (event.key.keysym.sym == SDLK_F4) gb.save("dump.4");
+
+					if (event.key.keysym.sym == SDLK_F5) gb.load("dump.1");
+					if (event.key.keysym.sym == SDLK_F6) gb.load("dump.2");
+					if (event.key.keysym.sym == SDLK_F7) gb.load("dump.3");
+					if (event.key.keysym.sym == SDLK_F8) gb.load("dump.4");
+
+				case SDL_KEYUP:
 					{
 						bool set = true;;
 						JoyPAD.Key key;
