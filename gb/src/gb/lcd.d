@@ -24,7 +24,7 @@ class LCD {
 		}
 	}
 
-	void DrawTile(u16* tile, u8 pal, int px, int py) {
+	void DrawTile(u16* tile, u8 pal, uint px, uint py) {
 		//for (int n = 0; n < 16; n++) writef("%02X ", tile[n]); writefln();
 		for (int y = 0; y < 8; y++) {
 			u16 v = tile[y];
@@ -35,7 +35,7 @@ class LCD {
 		}
 	}
 
-	void DrawSprite(u16* tile, u8 pal, int px, int py) {
+	void DrawSprite(u16* tile, u8 pal, uint px, uint py) {
 		//for (int n = 0; n < 16; n++) writef("%02X ", tile[n]); writefln();
 		for (int y = 0; y < 8; y++) {
 			u16 v = tile[y];
@@ -65,9 +65,9 @@ class LCD {
 			u8 N = RAM[0xFE00 + n * 4 + 2];
 			u8 A = RAM[0xFE00 + n * 4 + 3];
 
-			DrawSprite(cast(u16*)&RAM[0x8000 + N * 0x10], 0, X - 0x08, Y - 0x10);
+			DrawSprite(cast(u16*)&RAM[0x8000 + N * 0x10], 0, cast(int)(X) - 0x08, cast(int)(Y) - 0x10);
 
-			if (n == 6) writefln("%02X %02X %02X %02X", X, Y, N, A);
+			if (n == 8) printf("\t\t%02X %02X %02X %02X\r", X, Y, N, A);
 		}
 	}
 }

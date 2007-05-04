@@ -2,6 +2,8 @@ module gameboy.z80;
 
 public import gameboy.common;
 
+import pdcurses;
+
 import gameboy.lcd;
 import gameboy.joypad;
 import gameboy.memory;
@@ -240,7 +242,6 @@ class GameBoy {
 	// generalmente los emuladores la vacían a 0. Aún así, los propios juegos deben
 	// definir la memória que quieran usar.
 	void init() {
-		writef(repeat("-", 80));
 		AF = 0x01B0; BC = 0x0013;
 		DE = 0x00D8; HL = 0x014D;
 		SP = 0xFFFE; PC = 0x0100;
@@ -275,7 +276,6 @@ class GameBoy {
 		mem.w8(0xFF4A, 0x00); // WY
 		mem.w8(0xFF4B, 0x00); // WX
 		mem.w8(0xFFFF, 0x00); // IE
-		writef(repeat("-", 80));
 	}
 
 	// Un VBLANK se ejecuta 59.7 veces por segundo en la GB y 61.1 en SGB
@@ -335,6 +335,32 @@ class GameBoy {
 		} finally {
 			save.close();
 		}
+	}
+
+	void updateStatus() {
+		console.move(0, 0);
+		console.print(repeat("-", 80));
+		console.move(1, 8);
+		console.print(format("PC: %04X | SP: %04X | AF: %04X | BC: %04X | DE: %04X | HL: %04X", PC, SP, AF, BC, DE, HL));
+		console.move(2, 0);
+		console.print(repeat("-", 80));
+
+		for (int y = 0, n = 0; y < 5; y++) {
+			console.move(3 + y, 0);
+			for (int x = 0; x < 16; x++) {
+				console.print(format("%02X ", mem.r8(n + x)));
+			}
+			for (int x = 0; x < 16; x++, n++) {
+				console.addch(mem.r8(n + x));
+			}
+			n += 16;
+		}
+
+		console.move(10, 0);
+
+		console.refresh();
+
+		//printf("PC: %04X\r", PC);
 	}
 
 	bool showinst;
@@ -420,7 +446,9 @@ class GameBoy {
 			CPC = PC;
 
 			//printf("%04X - %s\t\t\t\r", strip(disasm(PC)));
-			if ((cycles % 0x1000) == 0) printf("PC: %04X\r", PC);
+			if ((cycles % 0x1000) == 0) {
+				updateStatus();
+			}
 
 			// Decodificamos la instrucción
 			op = mem.r8(PC++);
@@ -794,4 +822,17 @@ class GameBoy {
 	void TRACE(char[] s) {
 		if (showinst) writefln("%s", s);
 	}
+}
+
+Console console;
+
+static this() {
+	console = new Console();
+	console.clear();
+	console.refresh();
+}
+
+static ~this() {
+	console.clear();
+	console.refresh();
 }

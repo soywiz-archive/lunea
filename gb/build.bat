@@ -1,5 +1,6 @@
 @echo off
-dmd lib\SDL.lib src\sdl\sdl.d src\gb\z80.d src\gb\joypad.d src\gb\lcd.d src\gb\common.d src\gb\memory.d src\gb\tables.d gdi32.lib src\winsdlmain.d -ofgameboy.exe
+call build_common.bat
+dmd %GB_D_LIB% %GB_D_INCLUDES% %GB_D_MODULES% %GB_D_MAIN% -ofgameboy.exe
 del *.obj
 del gameboy.map
 upx gameboy.exe
