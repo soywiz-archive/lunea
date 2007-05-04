@@ -45,6 +45,17 @@ class Memory {
 
 	// Escritura de 8 bits en memoria
 	void w8(u16 addr, u8 v) {
+		if (addr >= 0xFE00 && addr < 0xFEA0) {
+			//writefln("OAM %04X <- %02X", addr, v);
+			//exit(-1);
+		}
+		if (addr == 0xFF46) { //  LCD OAM DMA Transfers
+			u16 rp = v << 8;
+			//u16 rp = 0;
+			//writefln("OAMTRANSFER %02X00[00..9F] -> FE00[00..9F]", v);
+			MEM[0xFE00..0xFEA0] = MEM[rp..rp + 0xA0];
+			return;
+		}
 		switch (addr) {
 			case 0xFF00: pad.Write(v); break;
 			default: *cast(u8 *)(MEM.ptr + addr) = v;

@@ -188,8 +188,10 @@ class GameBoy {
 	// Añade ciclos para simular el retraso
 	void addCycles(int n) {
 		static int a = 0;
+		//static const real multiplier = 1;
+		static const real multiplier = 0.4;
 		static const uint ccyc = 0x400000, msec = 1;
-		static int slcyc = (ccyc / cast(int)(59.73 * 144));
+		static int slcyc = cast(int)(cast(real)ccyc * multiplier / cast(real)(59.73 * 144));
 
 		cycles += (n << 2) * 1000;
 		vbcycles += (n << 2);
@@ -202,7 +204,7 @@ class GameBoy {
 		}
 
 		if (a == 30) {
-			ghs.Sleep1();
+			//ghs.Sleep1();
 			a = 0;
 		}
 
@@ -291,7 +293,7 @@ class GameBoy {
 		// Si el scanline es 144, estamos ya en una línea offscreen y por tanto aprovechamos para generar
 		// la interrupción V-Blank
 		if (*scanline == 144) {
-			lcd.DrawScreen(mem.addr8(0x8000));
+			lcd.DrawScreen(mem.addr8(0x0000));
 			ghs.UpdateScreen(0, lcd.LCDIMG.ptr);
 			interrupt(0x40);
 		}
@@ -499,22 +501,6 @@ class GameBoy {
 								}
 							} break;
 							case 0b010: { // A <- (r16), (r16) <- A
-								/*
-									00 000 010 - 02 - LD (BC), A
-									00 001 010 - 0A - LD A, (BC)
-									00 010 010 - 12 - LD (DE), A
-									00 011 010 - 1A - LD A, (DE)
-
-									00 100 010 - 22 - LDI (HL), A
-									00 101 010 - 2A - LDI A, (HL)
-									00 110 010 - 32 - LDD (HL), A
-									00 111 010 - 3A - LDD A, (HL)
-								*/
-								//writefln("OP(%02X): %08b", op, op);
-								// 00 XXX 010
-								// 00 XXX 010
-								// TODO
-								// BUG
 								u16 v16 = (r2 & 0b100) ? HL : getr16(r22 & 0b11);
 								if (!(r2 & 0b1)) {
 									version(trace) TRACE(format("LD [%04X], A", v16));
@@ -728,8 +714,8 @@ class GameBoy {
 	}
 
 	void STOP() {
-		writefln("--STOP");
-		exit(-1);
+		//writefln("--STOP|");
+		//exit(-1);
 	}
 
 	void NOP() { }
