@@ -335,29 +335,37 @@ class GameBoy {
 
 	// Crea una dump de memória
 	void save(Stream s) {
-		writef("Saving...");
 		mem.save(s);
 		s.writeExact(&A, (&IME - &A) + IME.sizeof);
-		writefln("Ok");
 	}
 
 	void save(char[] name) {
-		File f = new File(name, FileMode.OutNew);
-		save(f);
-		f.close();
+		writef("Saving (%s)...", name);
+		try {
+			File f = new File(name, FileMode.OutNew);
+			save(f);
+			f.close();
+			writefln("Ok");
+		} catch {
+			writefln("Error");
+		}
 	}
 
 	void load(Stream s) {
-		writef("Loading...");
 		mem.load(s);
 		s.readExact(&A, (&IME - &A) + IME.sizeof);
-		writefln("Ok");
 	}
 
 	void load(char[] name) {
-		File f = new File(name, FileMode.In);
-		load(f);
-		f.close();
+		writef("Loading (%s)...", name);
+		try {
+			File f = new File(name, FileMode.In);
+			load(f);
+			f.close();
+			writefln("Ok");
+		} catch {
+			writefln("Error");
+		}
 	}
 
 	void dump() {
@@ -371,9 +379,13 @@ class GameBoy {
 		console.print(format("PC: %04X | SP: %04X | AF: %04X | BC: %04X | DE: %04X | HL: %04X", PC, SP, AF, BC, DE, HL));
 		console.move(2, 0);
 		console.print(repeat("-", 80));
+		console.move(3, 2);
+		console.print("F1-F4 - Guardar estados | F5-F8 - Cargar estados | ENTER,ESPACIO,Z,X botones");
+		console.move(4, 0);
+		console.print(repeat("-", 80));
 
 		for (int y = 0, n = 0xFE00; y < 5; y++) {
-			console.move(3 + y, 0);
+			console.move(5 + y, 0);
 
 			console.print(format("%04X: [", n));
 
