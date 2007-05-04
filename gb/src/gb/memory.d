@@ -2,17 +2,17 @@ module gameboy.memory;
 
 import gameboy.common;
 
-import gameboy.keypad;
+import gameboy.joypad;
 
 import std.stream, std.stdio, std.string, std.stream, std.c.stdlib, std.zlib;
 import std.c.stdio, std.c.string, std.system;
 
-version = MTRACE;
+//version = MTRACE;
 
 class Memory {
 	u8 MEM[0x10000];
 	bool MEM_TRACED[0x10000];
-	KeyPAD pad;
+	JoyPAD pad;
 
 	this() {
 		memset(MEM.ptr, 0, MEM.length);

@@ -1,5 +1,5 @@
 import gameboy.z80;
-import gameboy.keypad;
+import gameboy.joypad;
 import SDL;
 import std.c.windows.windows;
 import std.c.stdio, std.c.string;
@@ -135,16 +135,16 @@ class GBWinSDL : GameboyHostSystem {
 
 					{
 						bool set = true;;
-						KeyPAD.Key key;
+						JoyPAD.Key key;
 						switch (event.key.keysym.sym) {
-							case SDLK_LEFT:   key = KeyPAD.Key.LEFT;   break;
-							case SDLK_RIGHT:  key = KeyPAD.Key.RIGHT;  break;
-							case SDLK_UP:     key = KeyPAD.Key.UP;     break;
-							case SDLK_DOWN:   key = KeyPAD.Key.DOWN;   break;
-							case SDLK_z:      key = KeyPAD.Key.A;      break;
-							case SDLK_x:      key = KeyPAD.Key.B;      break;
-							case SDLK_RETURN: key = KeyPAD.Key.START;  break;
-							case SDLK_SPACE:  key = KeyPAD.Key.SELECT; break;
+							case SDLK_LEFT:   key = JoyPAD.Key.LEFT;   break;
+							case SDLK_RIGHT:  key = JoyPAD.Key.RIGHT;  break;
+							case SDLK_UP:     key = JoyPAD.Key.UP;     break;
+							case SDLK_DOWN:   key = JoyPAD.Key.DOWN;   break;
+							case SDLK_z:      key = JoyPAD.Key.A;      break;
+							case SDLK_x:      key = JoyPAD.Key.B;      break;
+							case SDLK_RETURN: key = JoyPAD.Key.START;  break;
+							case SDLK_SPACE:  key = JoyPAD.Key.SELECT; break;
 							default: set = false; break;
 						}
 

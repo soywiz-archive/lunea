@@ -3,7 +3,7 @@ module gameboy.z80;
 public import gameboy.common;
 
 import gameboy.lcd;
-import gameboy.keypad;
+import gameboy.joypad;
 import gameboy.memory;
 
 import std.stdio, std.string, std.stream, std.c.stdlib, std.zlib, std.system;
@@ -84,7 +84,7 @@ class GameBoy {
 		this.ghs = ghs;        // GameboyHostSystem
 		this.lcd = new LCD;    // Display LCD
 		this.mem = new Memory; // Memoria
-		this.pad = new KeyPAD; // KeyPAD
+		this.pad = new JoyPAD; // JoyPAD
 		ghs.attach(this);
 		this.mem.pad = this.pad;
 		IE = this.mem.addr8(0xFFFF);
@@ -120,7 +120,7 @@ class GameBoy {
 	RomHeader *rh; // Header
 	Memory    mem; // Memoria
 	LCD       lcd; // LCD
-	KeyPAD    pad; // KeyPAD
+	JoyPAD    pad; // JoyPAD
 
 	// Registros
 	static if (endian == Endian.BigEndian) {
