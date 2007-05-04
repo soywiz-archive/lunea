@@ -87,6 +87,8 @@ class GameBoy {
 		this.pad = new KeyPAD; // KeyPAD
 		ghs.attach(this);
 		this.mem.pad = this.pad;
+		IE = this.mem.addr8(0xFFFF);
+		IF = this.mem.addr8(0xFF0F);
 	}
 
 	// Al borrar la instancia
@@ -131,6 +133,8 @@ class GameBoy {
 	u16 SP;  // Stack Pointer
 	u16 PC;  // Program Counter
 	u8  IME; // Interrupt Master Enable Flag (Write Only)
+	u8 *IE; // FFFF - IE - Interrupt Enable (R/W)
+	u8 *IF; // FF0F - IF - Interrupt Flag (R/W)
 
 	// Carry Flag
 	static const u8 CFMASK = 0b00010000;
@@ -183,7 +187,9 @@ class GameBoy {
 
 	// Añade ciclos para simular el retraso
 	void addCycles(int n) {
-		static const uint ccyc = 0x400000, slcyc = (ccyc / cast(int)(59.73 * 144)), msec = 1;
+		static int a = 0;
+		static const uint ccyc = 0x400000, msec = 1;
+		static int slcyc = (ccyc / cast(int)(59.73 * 144));
 
 		cycles += (n << 2) * 1000;
 		vbcycles += (n << 2);
@@ -191,8 +197,13 @@ class GameBoy {
 		ghs.KeepAlive();
 
 		while (cycles >= ccyc) {
-			ghs.Sleep1();
+			a++;
 			cycles -= ccyc;
+		}
+
+		if (a == 30) {
+			ghs.Sleep1();
+			a = 0;
 		}
 
 		while (vbcycles >= slcyc) {
@@ -286,50 +297,30 @@ class GameBoy {
 		}
 	}
 
-	void interrupt(u8 type) {
-		u8 *IE = mem.addr8(0xFFFF); // FFFF - IE - Interrupt Enable (R/W)
-		u8 *IF = mem.addr8(0xFF0F); // FF0F - IF - Interrupt Flag (R/W)
-
-		//writefln("!!INTERRUPTION: %02X", type);
-
+	// Procesa las interrupciones
+	void interrupt_process() {
 		if (!IME) return;
 
-		IME = false;
+		bool check(u8 b) { return (*IF & b) && (*IE & b); }
 
+		if (check(0b00001)) { IME = false; RST(0x40 >> 3); RES(0, IF); return; } // V-Blank
+		if (check(0b00010)) { IME = false; RST(0x48 >> 3); RES(1, IF); return; } // LCD STAT
+		if (check(0b00100)) { IME = false; RST(0x50 >> 3); RES(2, IF); return; } // Timer
+		if (check(0b01000)) { IME = false; RST(0x58 >> 3); RES(3, IF); return; } // Serial
+		if (check(0b10000)) { IME = false; RST(0x60 >> 3); RES(4, IF); return; } // Joypad
+	}
+
+	// Produce una interrupción
+	void interrupt(u8 type) {
 		switch (type) {
-			case 0x40: // V-Blank
-				if (*IE & (1 << 0)) {
-					SET(0, IF);
-					RST(type >> 3);
-				}
-			break;
-			case 0x48: // LCD STAT
-				if (*IE & (1 << 1)) {
-					SET(1, IF);
-					RST(type >> 3);
-				}
-			break;
-			case 0x50: // Timer
-				if (*IE & (1 << 2)) {
-					SET(2, IF);
-					RST(type >> 3);
-				}
-			break;
-			case 0x58: // Serial
-				if (*IE & (1 << 3)) {
-					SET(3, IF);
-					RST(type >> 3);
-				}
-			break;
-			case 0x60: // Joypad
-				if (*IE & (1 << 4)) {
-					SET(4, IF);
-					RST(type >> 3);
-				}
-			break;
+			case 0x40: SET(0, IF); break; // V-Blank
+			case 0x48: SET(1, IF); break; // LCD STAT
+			case 0x50: SET(2, IF); break; // Timer
+			case 0x58: SET(3, IF); break; // Serial
+			case 0x60: SET(4, IF); break; // Joypad
 		} // switch
 
-		IME = true;
+		interrupt_process();
 	}
 
 	// Crea una dump de memória
@@ -476,9 +467,9 @@ class GameBoy {
 
 				setr8(op2 & 0b111, r8);
 
-				addCycles(opcycles_cb[op2]);
-
 				PC += opargs[op];
+
+				addCycles(opcycles_cb[op2]);
 			} else {
 				PC += opargs[op];
 
@@ -731,17 +722,6 @@ class GameBoy {
 	}
 
 // --- INSTRUCCIONES ----------------------------------------------------------
-	void NOP() { }
-	void AND(u8 v) { A &= v; ZF = (A == 0); NF = false; HF = true ; CF = false; } // Logical AND
-	void OR (u8 v) { A |= v; ZF = (A == 0); NF = false; HF = false; CF = false; } // Logical OR
-	void XOR(u8 v) { A ^= v; ZF = (A == 0); NF = false; HF = false; CF = false; } // Logical XOR
-	void CP (u8 v) {
-		NF = true;
-		ZF = (A == v);
-		CF = (A < v);
-		HF = (A & 0b1111) < (v & 0b1111);
-	} // ComPare with A
-
 	void HALT() {
 		writefln("--HALT");
 		exit(-1);
@@ -752,17 +732,17 @@ class GameBoy {
 		exit(-1);
 	}
 
+	void NOP() { }
+	void AND(u8 v) { A &= v; ZF = (A == 0); NF = false; HF = true ; CF = false; } // Logical AND
+	void OR (u8 v) { A |= v; ZF = (A == 0); NF = false; HF = false; CF = false; } // Logical OR
+	void XOR(u8 v) { A ^= v; ZF = (A == 0); NF = false; HF = false; CF = false; } // Logical XOR
+	void CP (u8 v) { NF = true; ZF = (A == v); CF = (A < v); HF = (A & 0b1111) < (v & 0b1111); } // ComPare with A
+
 	void INC(u16* r) { (*r)++; }
-	void INC(u8*  r) {
-		(*r)++; NF = false; ZF = (*r == 0);
-		HF = ((*r & 0b1111) == 0b0000);
-	}
+	void INC(u8*  r) { (*r)++; NF = false; ZF = (*r == 0); HF = ((*r & 0b1111) == 0b0000); }
 
 	void DEC(u16* r) { (*r)--; }
-	void DEC(u8*  r) {
-		(*r)--; NF = true; ZF = (*r == 0);
-		HF = ((*r & 0b1111) == 0b1111);
-	}
+	void DEC(u8*  r) { (*r)--; NF = true; ZF = (*r == 0); HF = ((*r & 0b1111) == 0b1111); }
 
 	void ADD(u8  v) { CF = (cast(u16)A + cast(u16)v > 0xFF); HF = (cast(u16)(A & 0xF) + cast(u16)(v & 0xF) > 0xF); A += v; NF = false; ZF = (A == 0); }
 	void ADC(u8  v) { CF = ((cast(u16)A + cast(u16)v + cast(u16)CF) > 0xFF); HF = ((cast(u16)(A & 0xF) + cast(u16)(v & 0xF) + CF) > 0xF); A += v + CF; NF = false; ZF = (A == 0); }
@@ -778,35 +758,40 @@ class GameBoy {
 
 	void RLC (u8 *r) { CF = (*r & 0b10000000) != 0; *r = (*r << 1) | CF; ZF = (*r == 0); HF = false; NF = false; } // Rotate Left
 	void RRC (u8 *r) { CF = (*r & 0b00000001) != 0; *r = (*r >> 1) | (CF << 7); ZF = (*r == 0); HF = false; NF = false; } // Rotate Right
-	void RL  (u8 *r) { writefln("--RL\t"); exit(-1); } // Rotate Left thru carry
-	void RR  (u8 *r) { writefln("--RR\t"); exit(-1); } // Roate Right thru carry
-	void SLA (u8 *r) { CF = (*r & 0b10000000) != 0; *r <<= 1; ZF = (*r == 0); HF = false; NF = false; } // Shift Left
-	void SRA (u8 *r) { writefln("--SRA\t"); exit(-1); } // Shift Right
 
-	void SWAP(u8 *r) {
-		*r = ((*r >> 4) & 0b1111) | ((*r << 4) & 0b11110000);
-		ZF = (*r == 0);
-		NF = false;
-		HF = false;
-		CF = false;
-	} // SWAP NIBLES
-	void SRL (u8 *r) { }
+	void RL  (u8 *r) { CF = (*r & 0b10000000) != 0; *r = (*r << 1) | ((*r >> 7) & 0b00000001); HF = false; NF = false; } // Rotate Left thru carry
+	void RR  (u8 *r) { CF = (*r & 0b00000001) != 0; *r = (*r >> 7) | ((*r << 7) & 0b10000000); HF = false; NF = false; } // Roate Right thru carry
 
+	void SLA (u8 *r) { CF = (*r & 0b10000000) != 0; *r = (*r << 1); ZF = (*r == 0); HF = false; NF = false; } // Shift Left
+	void SRA (u8 *r) { CF = (*r & 0b00000001) != 0; *r = (*r >> 1) | 0b10000000; ZF = (*r == 0); HF = false; NF = false; } // Shift Right
+	void SRL (u8 *r) { CF = (*r & 0b00000001) != 0; *r = (*r >> 1); ZF = (*r == 0); HF = false; NF = false; } // Shift Right Logical
+
+	void SWAP(u8 *r) { *r = ((*r >> 4) & 0b1111) | ((*r << 4) & 0b11110000); ZF = (*r == 0); NF = false; HF = false; CF = false; } // SWAP NIBLES
+
+	// Operaciones con bit
 	void BIT(u8 bit, u8 *r) { ZF = (*r & (1 << bit)) == 0; NF = false; HF = true; }
-	void RES(u8 bit, u8 *r) { *r &= ~(1 << bit); }
-	void SET(u8 bit, u8 *r) { *r |=  (1 << bit); }
+	static void RES(u8 bit, u8 *r) { *r &= ~(1 << bit); }
+	static void SET(u8 bit, u8 *r) { *r |=  (1 << bit); }
 
 	void PUSH(u16 v) { SP -= 2; mem.w16(SP, v); }
 	u16  POP() { SP += 2; return mem.r16(SP - 2); }
 
-	void DAA () {
-		writefln("--DAA\t");
-		exit(-1);
+	void DAA() {
+		if (HF) {
+			if ((A & 0b00001111) >= (HF | 0b00001010)) { A -= 0b00000110; }
+			if ((A & 0b11110000) >= (CF | 0b10100000)) { A -= 0b01100000; CF = true; }
+		} else {
+			if ((A & 0b00001111) >= (HF | 0b00001010)) { A += 0b00000110; }
+			if ((A & 0b11110000) >= (CF | 0b10100000)) { A += 0b01100000; CF = true; }
+		}
+
+		ZF = (A == 0);
+		HF = false;
 	} // Demical adjust register A
 
 	void CPL () { A = ~A; HF = true; NF = true; } // Logical NOT
-	void SCF () { writefln("--SCF\t"); exit(-1); }
-	void CCF () { writefln("--CCF\t"); exit(-1); }
+	void SCF () { CF = true; NF = false; HF = false; } // Set Carry Flag
+	void CCF () { CF = !CF; NF = false; HF = false; } // Change Carry Flag
 
 	void RET () { PC = POP(); } // RETURN
 	void RETI() { RET(); IME = true; } // RETURN INTERRUPT

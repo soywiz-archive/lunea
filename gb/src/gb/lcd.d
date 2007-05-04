@@ -2,10 +2,16 @@ module gameboy.lcd;
 
 import gameboy.common;
 
-import std.stdio;
+import std.stream, std.stdio, std.system;
 
 class LCD {
 	u8 LCDIMG[0x1680];
+
+	// Guardamos el estado del LCD
+	void save(Stream s) { throw(new Exception("TO DO")); }
+
+	// Cargamos el estado del LCD
+	void load(Stream s) { throw(new Exception("TO DO")); }
 
 	void PutPixel(int px, int py, u8 c) {
 		if (px < 0 || px >= 160 || py < 0 || py >= 144) return;

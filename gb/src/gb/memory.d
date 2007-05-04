@@ -4,8 +4,8 @@ import gameboy.common;
 
 import gameboy.keypad;
 
-import std.stdio, std.string, std.stream, std.c.stdlib, std.zlib;
-import std.c.stdio, std.c.string;
+import std.stream, std.stdio, std.string, std.stream, std.c.stdlib, std.zlib;
+import std.c.stdio, std.c.string, std.system;
 
 version = MTRACE;
 
@@ -22,27 +22,15 @@ class Memory {
 	void trace(u16 addr) { MEM_TRACED[addr] = true; }
 	bool traced(u16 addr) { return MEM_TRACED[addr]; }
 
-	void save(Stream s) {
-		s.writeExact(MEM.ptr, MEM.length);
-	}
+	// Guardamos el estado de la memoria
+	void save(Stream s) { s.writeExact(MEM.ptr, MEM.length); }
 
-	void load(Stream s) {
-		s.readExact(MEM.ptr, MEM.length);
-	}
+	// Cargamos el estado de la memoria
+	void load(Stream s) { s.readExact(MEM.ptr, MEM.length); }
 
-	void MEMTRACE(int addr, char[] s, bool critical = false) {
-		if (addr >= 0xFF00 || critical) {
-			writefln("%s", s);
-		}
-	}
-
-	void* addr(u16 addr) {
-		return cast(void *)&MEM[addr];
-	}
-
-	u8* addr8(u16 addr) {
-		return &MEM[addr];
-	}
+	// Obtenemos la dirección fisica de una zona de memória
+	void* addr(u16 addr) { return cast(void *)&MEM[addr]; }
+	u8* addr8(u16 addr) { return &MEM[addr]; }
 
 	// Lectura de 8 bits en memoria
 	u8 r8(u16 addr) {
@@ -53,20 +41,6 @@ class Memory {
 			case 0xFF00: return pad.Read();
 			default: return *cast(u8 *)(MEM.ptr + addr);
 		}
-	}
-
-	// Lectura de 16 bits en memoria
-	u16 r16(u16 addr) {
-		//scope(exit) { MEM_TRACED[addr] = true; }
-		//MEMTRACE(addr, format("READ %04X -> %02X", addr, MEM[addr]));
-		return *cast(u16 *)(MEM.ptr + addr);
-	}
-
-	// Escritura de 8 bits en memoria
-	void w16(u16 addr, u16 v) {
-		//scope(exit) { MEM_TRACED[addr] = true; }
-		//MEMTRACE(addr, format("WRITE %04X <- %04X", addr, v));
-		*cast(u16 *)(MEM.ptr + addr) = v;
 	}
 
 	// Escritura de 8 bits en memoria
@@ -617,4 +591,29 @@ class Memory {
 		}
 	}
 
+	// Lectura de 16 bits en memoria
+	u16 r16(u16 addr) {
+		static if (endian == Endian.BigEndian) {
+			return r8(addr) | (r8(addr + 1) << 8);
+		} else {
+			return r8(addr + 1) | (r8(addr) << 8);
+		}
+	}
+
+	// Escritura de 8 bits en memoria
+	void w16(u16 addr, u16 v) {
+		static if (endian == Endian.BigEndian) {
+			w8(addr + 0, (v >> 0) & 0xFF);
+			w8(addr + 1, (v >> 8) & 0xFF);
+		} else {
+			w8(addr + 0, (v >> 8) & 0xFF);
+			w8(addr + 1, (v >> 0) & 0xFF);
+		}
+	}
+
+	void MEMTRACE(int addr, char[] s, bool critical = false) {
+		if (addr >= 0xFF00 || critical) {
+			writefln("%s", s);
+		}
+	}
 }

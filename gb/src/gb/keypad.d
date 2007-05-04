@@ -2,7 +2,7 @@ module gameboy.keypad;
 
 import gameboy.common;
 
-import std.stdio, std.c.stdlib;
+import std.stream, std.stdio, std.c.stdlib, std.system;
 
 /*
 	Bit 7 - Not used
@@ -32,6 +32,18 @@ class KeyPAD {
 	// Estados
 	bool KP[8];
 	Type rstat;
+
+	// Guardamos el estado del LCD
+	void save(Stream s) {
+		u8 temp; for (int n = 0; n < 8; n++) { temp = KP[n]; s.write(temp); }
+		temp = rstat; s.write(temp);
+	}
+
+	// Cargamos el estado del LCD
+	void load(Stream s) {
+		u8 temp; for (int n = 0; n < 8; n++) { s.read(temp); KP[n] = (temp != 0); }
+		s.read(temp); rstat = cast(Type)temp;
+	}
 
 	// Leemos las teclas pulsadas actualmente
 	u8 Read() {
