@@ -73,10 +73,12 @@ Ni la SuperGameBoy ni la GameBoyColor están planeadas soportarse por ahora.
 
 // Interface usado para mantener la portabilidad entre diferentes plataformas y sistemas
 interface GameboyHostSystem {
-	void Sleep1();
+	//void DelayScanLine();
 	void UpdateScreen(int type, u8* LCDSCR);
 	void KeepAlive();
+	//void Sleep1();
 	void attach(GameBoy gb);
+	//void DelayVBlank();
 }
 
 // Clase encargada de emular una GameBoy
@@ -195,35 +197,6 @@ class GameBoy {
 	bool sgb = false; // Emulacion de Super GameBoy
 	bool cgb = false; // Emulación de GameBoy Color
 
-	// Añade ciclos para simular el retraso
-	void addCycles(int n) {
-		static int a = 0;
-		//static const real multiplier = 1;
-		static const real multiplier = 0.4;
-		static const uint ccyc = 0x400000, msec = 1;
-		static int slcyc = cast(int)(cast(real)ccyc * multiplier / cast(real)(59.73 * 144));
-
-		cycles += (n << 2) * 1000;
-		vbcycles += (n << 2);
-
-		ghs.KeepAlive();
-
-		while (cycles >= ccyc) {
-			a++;
-			cycles -= ccyc;
-		}
-
-		if (a == 30) {
-			//ghs.Sleep1();
-			a = 0;
-		}
-
-		while (vbcycles >= slcyc) {
-			incScanLine();
-			vbcycles -= slcyc;
-		}
-	}
-
 	// Cargamos la rom
 	void loadRom(char[] name) { loadRom(new File(name, FileMode.In)); }
 	void loadRom(Stream s) {
@@ -301,6 +274,7 @@ class GameBoy {
 		// Si el scanline es 144, estamos ya en una línea offscreen y por tanto aprovechamos para generar
 		// la interrupción V-Blank
 		if (*scanline == 144) {
+			ghs.KeepAlive();
 			lcd.DrawScreen(mem.addr8(0x0000));
 			ghs.UpdateScreen(0, lcd.LCDIMG.ptr);
 			interrupt(0x40);
@@ -372,6 +346,16 @@ class GameBoy {
 		save("dump");
 	}
 
+	// Añade ciclos para simular el retraso
+	void updateCycles() {
+		static const int slcyc = (0x400000 / 4) / 9198;
+
+		while (vbcycles >= slcyc) {
+			incScanLine();
+			vbcycles -= slcyc;
+		}
+	}
+
 	void updateStatus() {
 		console.move(0, 0);
 		console.print(repeat("-", 80));
@@ -421,6 +405,7 @@ class GameBoy {
 		u8 op;
 		void *reg_cb;
 		bool hl;
+		int cp = 0;
 
 		void traceInstruction(int PC, int count = 1) {
 			while (count > 0) {
@@ -482,23 +467,15 @@ class GameBoy {
 		u8  pu8 () { return *cast(u8 *)APC; } s8  ps8 () { return *cast(s8 *)APC; }
 		u16 pu16() { return *cast(u16*)APC; } s16 ps16() { return *cast(s16*)APC; }
 
-		/*
-		disasm(mem.MEM[0x017E..0x01A2], 0x017E);
-		writef(repeat("-", 80));
-		disasm(mem.MEM[0x0040..0x0048], 0x0040);
-		writef(repeat("-", 80));
-		disasm(mem.MEM[0x02E0..0x0300], 0x02E0);
-		writef(repeat("-", 80));
-		*/
-
 		// Bucle principal
 		while (!pexit) {
 			CPC = PC;
 
+			cp++;
+
 			//printf("%04X - %s\t\t\t\r", strip(disasm(PC)));
-			if ((cycles % 0x1000) == 0) {
-				updateStatus();
-			}
+			if ((cp % 0x10) == 0) updateCycles();
+			if ((cp % 0x1000) == 0) updateStatus();
 
 			// Decodificamos la instrucción
 			op = mem.r8(PC++);
@@ -549,7 +526,7 @@ class GameBoy {
 
 				PC += opargs[op];
 
-				addCycles(opcycles_cb[op2]);
+				vbcycles += opcycles_cb[op2];
 			} else {
 				PC += opargs[op];
 
@@ -724,7 +701,7 @@ class GameBoy {
 					} break;
 				} // switch
 
-				addCycles(opcycles[op]);
+				vbcycles += opcycles_cb[op];
 			} // else
 		} // while
 	} // function
@@ -878,11 +855,11 @@ Console console;
 
 static this() {
 	console = new Console();
-	console.clear();
-	console.refresh();
+	//console.clear();
+	//console.refresh();
 }
 
 static ~this() {
-	console.clear();
-	console.refresh();
+	//console.clear();
+	//console.refresh();
 }

@@ -4,7 +4,13 @@ import SDL;
 import std.c.windows.windows;
 import std.c.stdio, std.c.string;
 import std.stdio, std.string, std.stream, std.c.stdlib, std.zlib, std.system;
-extern(Windows) void Sleep(int);
+
+extern(Windows) {
+	void Sleep(u32);
+	u32 GetTickCount();
+	u32 QueryPerformanceCounter(u64 *lpPerformanceCount);
+	u32 QueryPerformanceFrequency(u64 *lpFrequency);
+}
 
 extern (C) {
     char*   getenv  (char *);
@@ -13,19 +19,36 @@ extern (C) {
 
 class GBWinSDL : GameboyHostSystem {
 	GameBoy gb;
-
-	void Sleep1() {
-		Sleep(1);
-	}
+	u64 qpfreq;
 
 	SDL_Surface* buffer;
 	SDL_Surface* screen;
+
+	void DelayVBlank() {
+		f96 sec;
+		static u64 start = 0, current = 0;
+
+		if (start != 0) {
+			while (true) {
+				QueryPerformanceCounter(&current);
+				sec = cast(f96)(current - start) / cast(f96)qpfreq;
+				//printf("%f - %f\r", cast(float)sec, cast(float)(1.0f / 59.73f));
+				if (sec >= 1.0f / 59.73f) break;
+			}
+		} else {
+			QueryPerformanceCounter(&current);
+		}
+
+		start = current;
+	}
 
 	void attach(GameBoy gb) {
 		this.gb = gb;
 	}
 
 	this() {
+		QueryPerformanceFrequency(&qpfreq);
+
 		if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) throw(new Exception("Unable to initialize SDL"));
 
 		putenv("SDL_VIDEO_WINDOW_POS=center");
@@ -55,17 +78,17 @@ class GBWinSDL : GameboyHostSystem {
 	}
 
 	void UpdateScreen(int type, u8* LCDSCR) {
-		static int updates = 0;
-		static int last = 0;
-		static double fps;
+		static f96 fps = 59.73, fps_back = 59.73; static u64 start = 0, current = 0;
 
-		updates++;
-		if (updates % 10 == 0) {
-			last = SDL_GetTicks();
-		} else if (updates % 10 == 9) {
-			fps = 10000 / cast(double)(SDL_GetTicks() - last);
-			SDL_WM_SetCaption(toStringz(format("GameBoy %4.1f fps", fps)), null);
-		}
+		QueryPerformanceCounter(&current);
+
+		if (start != 0) fps = cast(f96)qpfreq / (cast(f96)(current - start));
+
+		start = current;
+
+		SDL_WM_SetCaption(toStringz(format("GameBoy %4.1f fps", cast(f32)fps_back)), null);
+
+		fps_back = (cast(f96)fps + (cast(f96)fps_back * cast(f96)120)) / cast(f96)(120 + 1);
 
 		SDL_Rect drect, srect;
 		drect.x = drect.y = 0;
@@ -111,6 +134,8 @@ class GBWinSDL : GameboyHostSystem {
 		}
 		SDL_UnlockSurface(screen);
 		SDL_UpdateRect(screen, 0, 0, 160 * 2, 144 * 2);
+
+		DelayVBlank();
 	}
 
 	void KeepAlive() {
