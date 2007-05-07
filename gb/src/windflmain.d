@@ -4,7 +4,7 @@
 	www.dprogramming.com/entice.php
 */
 
-private import dfl.all;
+private import dfl.all, dfl.internal.winapi;
 private import std.stdio, std.thread, std.string;
 private import gameboy.z80, gameboy.joypad;
 
@@ -15,9 +15,16 @@ extern(Windows) {
 	u32 QueryPerformanceFrequency(u64 *lpFrequency);
 }
 
+class String {
+	char[] value;	
+	this(char[] value) { this.value = value; }
+	override char[] toString() { return value; }
+}
+
 class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 	// Do not modify or move this block of variables.
 	//~Entice Designer variables begin here.
+	dfl.picturebox.PictureBox pictureBox1;
 	//~Entice Designer variables end here.
 	
 	GameBoy gb;
@@ -67,11 +74,53 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 		}
 
 		start = current;
-	}	
+	}
+	
+	u16[] screenData;
+	HDC hdc;
+	BITMAPINFO bi;
+	
+	void DrawScreenData() {
+		this.hdc = pictureBox1.createGraphics().handle;
+		StretchDIBits(hdc, 0, 0, pictureBox1.width, pictureBox1.height, 0, 0, 160, 144, screenData.ptr, &bi, 0, SRCCOPY);
+	}
+	
+	/*void onPaint(Control c, PaintEventArgs pea) {
+		DrawScreenData();
+	}*/
 	
 	void UpdateScreen(int type, u8* LCDSCR) {
 		UpdateFPS();
-		{
+		{			
+			switch (type) {
+				case 0: default: case 1: {
+					u16 RGB16(int r, int g, int b) {
+						return
+							(((b >> 3) & 0b11111) <<  0) |
+							(((g >> 3) & 0b11111) <<  5) |
+							(((r >> 3) & 0b11111) << 10) |
+						0;
+					}
+					u16[4] palette;
+					palette[0] = RGB16(0x9C, 0xB9, 0x16);
+					palette[1] = RGB16(0x8C, 0xAA, 0x14);
+					palette[2] = RGB16(0x30, 0x64, 0x30);
+					palette[3] = RGB16(0x10, 0x3F, 0x10);
+					
+					screenData.length = 144 * 160;
+					for (int y = 0, n1 = 0, n2 = 0; y < 144; y++) {
+						for (int x = 0; x < 160; x += 4, n1++) {
+							u8 b = LCDSCR[n1];
+							screenData[n2++] = palette[(b >> 0) & 0b11];
+							screenData[n2++] = palette[(b >> 2) & 0b11];
+							screenData[n2++] = palette[(b >> 4) & 0b11];
+							screenData[n2++] = palette[(b >> 6) & 0b11];
+						}
+					}				
+					
+					DrawScreenData();
+				} break;
+			}
 		}
 		DelayVBlank();
 	}
@@ -79,30 +128,108 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 	void attach(GameBoy gb) {
 		this.gb = gb;
 	}
+	
+	void updateClientSize() {
+		this.setClientSizeCore(
+			this.width  + (320 - pictureBox1.width),
+			this.height + (288 - pictureBox1.height)
+		);
+		
+		this.centerToScreen();			
+		this.refresh();
+	}
 
 	this() {
 		initializeMainForm();
 		initializeKeyTranslator();
+
+		updateClientSize();
 		
-		MenuItem openRom, exit;
+		addShortcut(Keys.F1, &optionSaveState);
+		addShortcut(Keys.F2, &optionSaveState);
+		addShortcut(Keys.F3, &optionSaveState);
+		addShortcut(Keys.F4, &optionSaveState);
+
+		addShortcut(Keys.F5, &optionLoadState);
+		addShortcut(Keys.F6, &optionLoadState);
+		addShortcut(Keys.F7, &optionLoadState);
+		addShortcut(Keys.F8, &optionLoadState);
+			
+		with (bi.bmiHeader) {
+			biSize      = 40;
+			biWidth     = 160;
+			biHeight    = -144;
+			biPlanes    = 1;
+			biBitCount  = 16;
+			biSizeImage = 46080;
+		}
 		
+		MenuItem cMenuItem(char[] text, MenuItem[] mil = null, void delegate(MenuItem, EventArgs) click = null, char[] name = "") {
+			MenuItem mi = new MenuItem(text, mil);
+			if (click) mi.click ~= click;
+			mi.tag = new String(name);
+			return mi;
+		}
+
 		this.menu = new MainMenu([
-			new MenuItem("&Archivo", [
-				openRom = new MenuItem("&Abrir ROM"),
-				new MenuItem("-"),
-				exit = new MenuItem("&Salir")
-			])
+			cMenuItem("&Archivo", [
+				cMenuItem("&Abrir ROM...", null, &optionOpenRom),
+				cMenuItem("-"),
+				cMenuItem("&Guardar estado", [
+					cMenuItem("Estado 1\tF1", null, &optionSaveState, "s1"),
+					cMenuItem("Estado 2\tF2", null, &optionSaveState, "s2"),
+					cMenuItem("Estado 3\tF3", null, &optionSaveState, "s3"),
+					cMenuItem("Estado 4\tF4", null, &optionSaveState, "s4")
+				]),
+				new MenuItem("&Cargar estado", [
+					cMenuItem("Estado 1\tF5", null, &optionLoadState, "l1"),
+					cMenuItem("Estado 2\tF6", null, &optionLoadState, "l2"),
+					cMenuItem("Estado 3\tF7", null, &optionLoadState, "l3"),
+					cMenuItem("Estado 4\tF8", null, &optionLoadState, "l4")
+				]),
+				cMenuItem("-"),
+				cMenuItem("&Salir", null, &optionExit)
+			]),
+			cMenuItem("&Ayuda", [
+				cMenuItem("&Sobre...")
+			])			
 		]);
 		
-		openRom.click ~= &optionOpenRom;
-		exit.click    ~= &optionExit;
+		this.icon = Application.resources.getIcon(101);		
+	}
+	
+	void saveState(char[] name) { gb.save(name); }
+	void saveState(int id) { saveState(format("dump.%d", id)); }
+
+	void loadState(char[] name) { gb.load(name); }
+	void loadState(int id) { loadState(format("dump.%d", id)); }
+
+	
+	private void optionSaveState(Object sender, FormShortcutEventArgs ea) {
+		if (ea.shortcut >= Keys.F1 && ea.shortcut <= Keys.F4) saveState(ea.shortcut - Keys.F1 + 1);
+	}	
+
+	private void optionLoadState(Object sender, FormShortcutEventArgs ea) {
+		if (ea.shortcut >= Keys.F5 && ea.shortcut <= Keys.F8) loadState(ea.shortcut - Keys.F5 + 1);
+	}	
+	
+	void optionSaveState(MenuItem mi, EventArgs ea) {
+		char[] s = mi.tag.toString; if (s.length < 2 || s[0] != 's') return;
+		int v = s[1] - '0'; if (v >= 1 && v <= 4) saveState(v);
+	}
+
+	void optionLoadState(MenuItem mi, EventArgs ea) {
+		char[] s = mi.tag.toString; if (s.length < 2 || s[0] != 'l') return;		
+		int v = s[1] - '0'; if (v >= 1 && v <= 4) loadState(v);
 	}
 	
 	void optionOpenRom(MenuItem mi, EventArgs ea) {
+		gbt.pause();
 		OpenFileDialog ofd = new OpenFileDialog;
 		ofd.filter = "GameBoy files (*.gb)|*.gb";
 		ofd.initialDirectory = Application.startupPath ~ "\\roms";
 		ofd.showDialog();
+		gbt.resume();
 	}
 
 	void optionExit(MenuItem mi, EventArgs ea) {
@@ -119,6 +246,12 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 		startPosition = dfl.form.FormStartPosition.CENTER_SCREEN;
 		text = "GameBoy";
 		clientSize = dfl.drawing.Size(294, 273);
+		//~DFL dfl.picturebox.PictureBox=pictureBox1
+		pictureBox1 = new dfl.picturebox.PictureBox();
+		pictureBox1.name = "pictureBox1";
+		pictureBox1.dock = dfl.control.DockStyle.FILL;
+		pictureBox1.bounds = dfl.base.Rect(0, 0, 294, 273);
+		pictureBox1.parent = this;
 		//~Entice Designer 0.8.2.1 code ends here.
 	}
 
@@ -141,7 +274,7 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 	}
 		
 	bool preFilterMessage(inout Message m) {
-		if (this.handle != m.hWnd) return false;
+		if (this.pictureBox1.handle != m.hWnd && this.handle != m.hWnd) return false;
 		switch (m.msg) {
 			case 256: // WM_KEYDOWN
 			case 257: // WM_KEYUP
@@ -162,8 +295,9 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 }
 
 MainForm mainForm;
+GameboyThread gbt;
 
-class EmulationThread : Thread {
+class GameboyThread : Thread {
 	GameBoy gb;
 	
 	override int run() {
@@ -187,8 +321,7 @@ int main()
 		
 		mainForm = new MainForm();
 		
-		EmulationThread et = new EmulationThread();
-		et.start();
+		(gbt = new GameboyThread()).start();
 		
 		Application.addMessageFilter(mainForm);
 		Application.run(mainForm);

@@ -12,7 +12,7 @@ GOTO END
 
 :DFL
 SET GB_D_COMPILER=dfl
-SET GB_D_MAIN=src\windflmain.d
+SET GB_D_MAIN=src\windflmain.d src\gameboy.res
 GOTO END
 
 :END
