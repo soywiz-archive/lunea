@@ -73,12 +73,8 @@ Ni la SuperGameBoy ni la GameBoyColor están planeadas soportarse por ahora.
 
 // Interface usado para mantener la portabilidad entre diferentes plataformas y sistemas
 interface GameboyHostSystem {
-	//void DelayScanLine();
 	void UpdateScreen(int type, u8* LCDSCR);
-	void KeepAlive();
-	//void Sleep1();
 	void attach(GameBoy gb);
-	//void DelayVBlank();
 }
 
 // Clase encargada de emular una GameBoy
@@ -134,6 +130,8 @@ class GameBoy {
 	LCD       lcd; // LCD
 	JoyPAD    pad; // JoyPAD
 
+	bool dotrace;
+
 	// Registros
 	static if (endian == Endian.BigEndian) {
 		union { u16 AF; struct { u8 A; u8 F; } } union { u16 BC; struct { u8 B; u8 C; } }
@@ -169,8 +167,8 @@ class GameBoy {
 	void ZF(bool set) { if (set) F |= ZFMASK; else F &= ~ZFMASK; }
 
 	// Mostramos un volcado de los registros y de los entornos de la pila
-	void RegDump() {
-		writefln(
+	void RegDump(Stream s) {
+		s.writefln(
 			"PC:[%04X] | " "AF:%04X " "BC:%04X "
 			"DE:%04X " "HL:%04X "
 			"| SP:%04X " "| IME:%02X | "
@@ -180,14 +178,14 @@ class GameBoy {
 			HL, SP, IME,
 			ZF, NF, HF, CF
 		);
-		writefln("STACK {");
+		s.writefln("STACK {");
 			//for (int n = SP - 12; n <= SP + 18; n += 2) {
 			for (int n = SP - 6; n <= SP + 0; n += 2) {
 				if (n < 0xFFFE) {
-					writefln("  %04X: %04X", n, mem.r16(n));
+					s.writefln("  %04X: %04X", n, mem.r16(n));
 				}
 			}
-		writefln("}");
+		s.writefln("}");
 	}
 
 	// Utilitarios
@@ -263,7 +261,7 @@ class GameBoy {
 	void mw8(u16 addr, u8 v) {
 		//if (addr == 0xC021) printf("MEM[%04X] <- (%02X) | PC(%04X)\r", addr, v, PC);
 		//if (addr == 0xFF88) printf("MEM[%04X] <- (%02X) | PC(%04X)\r", addr, v, PC);
-		if (addr == 0xC212) printf("MEM[%04X] <- (%02X) | PC(%04X)\r", addr, v, PC);
+		//if (addr == 0xC212) printf("MEM[%04X] <- (%02X) | PC(%04X)\r", addr, v, PC);
 		mem.w8(addr, v);
 	}
 
@@ -282,7 +280,6 @@ class GameBoy {
 		// Si el scanline es 144, estamos ya en una línea offscreen y por tanto aprovechamos para generar
 		// la interrupción V-Blank
 		if (*scanline == 144) {
-			ghs.KeepAlive();
 			lcd.DrawScreen(mem.addr8(0x0000));
 			ghs.UpdateScreen(0, lcd.LCDIMG.ptr);
 			interrupt(0x40);
@@ -404,7 +401,8 @@ class GameBoy {
 		writeMem(0xFE00, 5);
 
 		//writeMem(0xFF80, 11, 8);
-		writeMem(0xC200, 11, 8);
+		//writeMem(0xC200, 11, 8);
+		writeMem(0x2000, 11, 8);
 
 		console.move(20, 0);
 
@@ -415,16 +413,18 @@ class GameBoy {
 
 	bool stop;
 	bool showinst;
+	u16 CPC;
+
 	// Interpreta una sucesión de opcodes
 	void interpret() {
 		void *APC;
-		u16 CPC;
 		u8 op;
 		void *reg_cb;
 		bool hl;
 		int cp = 0;
 
 		stop = false;
+		dotrace = false;
 
 		void traceInstruction(int PC, int count = 1) {
 			while (count > 0) {
@@ -507,6 +507,10 @@ class GameBoy {
 
 			cp++;
 
+			if (CPC == 0x234F) {
+				dotrace = true;
+			}
+
 			//printf("%04X - %s\t\t\t\r", strip(disasm(PC)));
 			if ((cp % 0x10) == 0) updateCycles();
 			version (trace) {
@@ -515,7 +519,7 @@ class GameBoy {
 			}
 
 			if (stop) {
-				ghs.KeepAlive();
+				ghs.UpdateScreen(0, lcd.LCDIMG.ptr);
 				continue;
 			}
 
@@ -528,11 +532,15 @@ class GameBoy {
 
 			// Trazamos la instrucción si corresponde
 			version(trace) {
-				if (!mem.traced(CPC)) {
+				if (dotrace) {
 					showinst = true;
-					traceInstruction(CPC);
-					RegDump();
-					mem.trace(CPC);
+				} else {
+					showinst = false;
+					/*if (!mem.traced(CPC)) {
+						showinst = true;
+						traceInstruction(CPC);
+						mem.trace(CPC);
+					}*/
 				}
 			}
 
@@ -898,7 +906,12 @@ class GameBoy {
 	void RST(u8 v) { CALL(v << 3); } // RESTART AT
 
 	void TRACE(char[] s) {
-		if (showinst) writefln("%s", s);
+		static Stream f;
+		if (!showinst) return;
+		if (!f) f = new File("trace.txt", FileMode.OutNew);
+		writefln("%s", s);
+		f.writefln("%04X: %s", CPC, s);
+		RegDump(f);
 	}
 }
 

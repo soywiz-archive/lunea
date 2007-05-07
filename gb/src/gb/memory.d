@@ -50,6 +50,11 @@ class Memory {
 			//exit(-1);
 		}
 
+		if (addr <= 0x4000) {
+			//printf("Escribiendo en ROM [%04X]!!\r", addr);
+			//return;
+		}
+
 		switch (addr) {
 			case 0xFF00: pad.Write(v); break;
 			case 0xFF46: {
