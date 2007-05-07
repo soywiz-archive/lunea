@@ -328,10 +328,16 @@ class GameboyThread : Thread {
 	override int run() {
 		gb = new GameBoy(mainForm);
 
-		gb.loadRom("ROMS\\TETRIS.GB");
-		gb.init();
+		gb.loadRom("ROMS\\MARIO.GB");
+		while (true) {
+			gb.init();
 
-		gb.interpret();		
+			try {
+				gb.interpret();		
+			} catch (Object o) {
+				msgBox(o.toString(), "Emulation Error", MsgBoxButtons.OK, MsgBoxIcon.EXCLAMATION);	
+			}
+		}
 		
 		return 0;
 	}

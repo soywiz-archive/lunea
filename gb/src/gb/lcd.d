@@ -7,6 +7,8 @@ import std.stream, std.stdio, std.system;
 class LCD {
 	u8 LCDIMG[0x1680];
 
+	int sx, sy;
+
 	// Guardamos el estado del LCD
 	void save(Stream s) { throw(new Exception("TO DO")); }
 
@@ -60,14 +62,21 @@ class LCD {
 	}
 
 	void DrawScreen(u8* RAM) {
-		//writefln("%08X", RAM);
-		for (int y = 0, n = 0; y < 18; y++) {
-			for (int x = 0; x < 20; x++, n++) {
-				u8 tile = RAM[0x9800 + y * 0x20 + x];
-				//writef("%02X", tile);
-				DrawTile(cast(u16*)&RAM[0x8000 + tile * 0x10], 0, x * 8, y * 8);
+		// Background
+		for (int y = 0, n = 0; y < 18 + 1; y++) {
+			for (int x = 0; x < 20 + 1; x++, n++) {
+				int px, py;
+				px = x + cast(u8)sx / 8;
+				py = y + cast(u8)sy / 8;
+
+				px %= 32; py %= 32;
+
+				if (px >= 32 || py >= 32) continue;
+				if (px < 0 || py < 0) continue;
+
+				u8 tile = RAM[0x9800 + py * 0x20 + px];
+				DrawTile(cast(u16*)&RAM[0x8000 + tile * 0x10], 0, x * 8 - sx % 8, y * 8 - sy % 8);
 			}
-			//writefln();
 		}
 
 		// 40 sprites
@@ -79,5 +88,16 @@ class LCD {
 
 			DrawSprite(cast(u16*)&RAM[0x8000 + N * 0x10], 0, cast(int)(X) - 0x08, cast(int)(Y) - 0x10, A);
 		}
+	}
+
+	//
+	void ScrollX(u8 x) {
+		sx = x;
+		printf("SCROLL: %d, %d\t\t\r", sx, sy);
+	}
+
+	void ScrollY(u8 y) {
+		sy = y;
+		printf("SCROLL: %d, %d\t\t\r", sx, sy);
 	}
 }

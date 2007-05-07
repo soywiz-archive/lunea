@@ -2,7 +2,7 @@ module gameboy.memory;
 
 import gameboy.common;
 
-import gameboy.joypad;
+import gameboy.joypad, gameboy.lcd;
 
 import std.stream, std.stdio, std.string, std.stream, std.c.stdlib, std.zlib;
 import std.c.stdio, std.c.string, std.system;
@@ -13,6 +13,7 @@ class Memory {
 	u8 MEM[0x10000];
 	bool MEM_TRACED[0x10000];
 	JoyPAD pad;
+	LCD lcd;
 
 	this() {
 		memset(MEM.ptr, 0, MEM.length);
@@ -56,7 +57,9 @@ class Memory {
 		}
 
 		switch (addr) {
-			case 0xFF00: pad.Write(v); break;
+			case 0xFF00: pad.Write(v); break; // FF00 - P1/JOYP - Joypad (R/W)
+			case 0xFF42: lcd.ScrollY = v; break; // FF42 - SCY - Scroll Y (R/W)
+			case 0xFF43: lcd.ScrollX = v; break; // FF43 - SCX - Scroll X (R/W)
 			case 0xFF46: {
 				u16 rp = v << 8;
 				//printf("OAMTRANSFER [%02X00..%02X9F] -> [FE00..FE9F]\r", v, v);
@@ -64,6 +67,7 @@ class Memory {
 			} break;
 			default: *cast(u8 *)(MEM.ptr + addr) = v;
 		}
+		*cast(u8 *)(MEM.ptr + addr) = v;
 	}
 
 	void w8_debug(u16 addr, u8 v) {

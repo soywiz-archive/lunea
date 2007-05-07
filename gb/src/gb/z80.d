@@ -87,6 +87,7 @@ class GameBoy {
 		this.pad = new JoyPAD; // JoyPAD
 		ghs.attach(this);
 		this.mem.pad = this.pad;
+		this.mem.lcd = this.lcd;
 		IE = this.mem.addr8(0xFFFF);
 		IF = this.mem.addr8(0xFF0F);
 	}
@@ -713,11 +714,11 @@ class GameBoy {
 							case 0b011:
 								switch (r23) {
 									case 0b000: version(trace) TRACE(format("JP $%04X",      pu16)); JP(pu16); break; // C3
-									case 0b001: writefln("F.ERROR reached '0xCB'"  ); exit(-1); break; // CB
-									case 0b010: writefln("INVALID OP (%02X)", op   ); exit(-1); break; // D3
-									case 0b011: writefln("INVALID OP (%02X)", op   ); exit(-1); break; // DB
-									case 0b100: writefln("INVALID OP (%02X)", op   ); exit(-1); break; // E3
-									case 0b101: writefln("INVALID OP (%02X)", op   ); exit(-1); break; // EB
+									case 0b001: throw(new Exception("F.ERROR reached '0xCB'")); break; // CB
+									case 0b010: throw(new Exception(format("INVALID OP (%02X)", op))); break; // D3
+									case 0b011: throw(new Exception(format("INVALID OP (%02X)", op))); break; // DB
+									case 0b100: throw(new Exception(format("INVALID OP (%02X)", op))); break; // E3
+									case 0b101: throw(new Exception(format("INVALID OP (%02X)", op))); break; // EB
 									case 0b110: IME = false; break; // F3 (DI)
 									case 0b111: IME = true;  break; // FB (EI)
 								}
@@ -729,7 +730,7 @@ class GameBoy {
 										CALL(pu16);
 									}
 								} else {
-									writefln("INVALID OP (%02X)", op); exit(-1); // E4, EC, F4, FC
+									throw(new Exception(format("INVALID OP (%02X)", op))); // E4, EC, F4, FC
 								}
 							break;
 							case 0b101:
@@ -742,9 +743,9 @@ class GameBoy {
 											version(trace) TRACE(format("CALL $%04X", pu16));
 											CALL(pu16);
 										break;
-										case 0b01: writefln("INVALID OP (%02X)", op); exit(-1); break;
-										case 0b10: writefln("INVALID OP (%02X)", op); exit(-1); break;
-										case 0b11: writefln("INVALID OP (%02X)", op); exit(-1); break;
+										case 0b01: throw(new Exception(format("INVALID OP (%02X)", op))); break;
+										case 0b10: throw(new Exception(format("INVALID OP (%02X)", op))); break;
+										case 0b11: throw(new Exception(format("INVALID OP (%02X)", op))); break;
 									}
 								}
 							break;
@@ -831,11 +832,12 @@ class GameBoy {
 // --- INSTRUCCIONES ----------------------------------------------------------
 	void HALT() {
 		writefln("--HALT");
-		exit(-1);
+		throw(new Exception(format("HALT NOT IMPLEMENTED")));
 	}
 
 	void STOP() {
 		//writefln("--STOP|");
+		throw(new Exception(format("STOP NOT IMPLEMENTED")));
 		//exit(-1);
 	}
 
