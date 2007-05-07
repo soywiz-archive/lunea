@@ -5,7 +5,7 @@
 */
 
 private import dfl.all;
-private import std.stdio, std.thread;
+private import std.stdio, std.thread, std.string;
 private import gameboy.z80, gameboy.joypad;
 
 extern(Windows) {
@@ -21,9 +21,59 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 	//~Entice Designer variables end here.
 	
 	GameBoy gb;
+	
+	static f96 qpfreq = 0;
+	
+	static this() {
+		u64 qpfreqv;
+		QueryPerformanceFrequency(&qpfreqv);
+		qpfreq = cast(f96)qpfreqv;			
+	}
+	
+	void UpdateFPS() {
+		static f96 fps = 59.73, fps_back = 59.73; static u64 start = 0, current = 0, count = 0;		
 
+		QueryPerformanceCounter(&current);
+
+		if (start != 0) fps = qpfreq / (cast(f96)(current - start));
+
+		start = current;
+
+		count++;
+
+		if (count >= 15) {
+			this.text = format("GameBoy %4.1f fps", cast(f32)fps_back);
+			count = 0;
+		}
+
+		fps_back = (cast(f96)fps + (cast(f96)fps_back * cast(f96)120)) / cast(f96)(120 + 1);		
+	}
+	
+	void DelayVBlank() {
+		f96 sec;
+		static u64 start = 0, current = 0;
+		static f96 payload = 0.0f;
+
+		if (start == 0) QueryPerformanceCounter(&start);
+
+		while (true) {
+			QueryPerformanceCounter(&current);
+			sec = cast(f96)(current - start) / cast(f96)qpfreq;
+			//printf("%f - %f\r", cast(float)sec, cast(float)(1.0f / 59.73f));
+			if (sec - payload >= 1.0f / 59.73f) {
+				payload = (sec - payload) - 1.0f / 59.73f;
+				break;
+			}
+		}
+
+		start = current;
+	}	
+	
 	void UpdateScreen(int type, u8* LCDSCR) {
-		Sleep(1);
+		UpdateFPS();
+		{
+		}
+		DelayVBlank();
 	}
 
 	void attach(GameBoy gb) {
@@ -45,7 +95,7 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 		]);
 		
 		openRom.click ~= &optionOpenRom;
-		//exit.click = &optionExit;
+		exit.click    ~= &optionExit;
 	}
 	
 	void optionOpenRom(MenuItem mi, EventArgs ea) {
