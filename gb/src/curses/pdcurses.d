@@ -53,11 +53,17 @@ extern(C) {
 	int	wmove(WINDOW *, int, int);
 	int	wprintw(WINDOW *, char *, ...);
 	int	wcolor_set(WINDOW *, short, void *);
+
+	int has_key(int);
 }
 
 class Console {
 	WINDOW *win;
 	bool autorefresh;
+
+	enum {
+		KEY_UP = 0x103,
+	}
 
 	this(bool autorefresh = false) {
 		this.win = initscr();

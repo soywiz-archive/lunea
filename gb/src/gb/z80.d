@@ -181,7 +181,8 @@ class GameBoy {
 			ZF, NF, HF, CF
 		);
 		writefln("STACK {");
-			for (int n = SP - 12; n <= SP + 18; n += 2) {
+			//for (int n = SP - 12; n <= SP + 18; n += 2) {
+			for (int n = SP - 6; n <= SP + 0; n += 2) {
 				if (n < 0xFFFE) {
 					writefln("  %04X: %04X", n, mem.r16(n));
 				}
@@ -226,37 +227,44 @@ class GameBoy {
 		AF = 0x01B0; BC = 0x0013;
 		DE = 0x00D8; HL = 0x014D;
 		SP = 0xFFFE; PC = 0x0100;
-		mem.w8(0xFF05, 0x00); // TIMA
-		mem.w8(0xFF06, 0x00); // TMA
-		mem.w8(0xFF07, 0x00); // TAC
-		mem.w8(0xFF10, 0x80); // NR10
-		mem.w8(0xFF11, 0xBF); // NR11
-		mem.w8(0xFF12, 0xF3); // NR12
-		mem.w8(0xFF14, 0xBF); // NR14
-		mem.w8(0xFF16, 0x3F); // NR21
-		mem.w8(0xFF17, 0x00); // NR22
-		mem.w8(0xFF19, 0xBF); // NR24
-		mem.w8(0xFF1A, 0x7F); // NR30
-		mem.w8(0xFF1B, 0xFF); // NR31
-		mem.w8(0xFF1C, 0x9F); // NR32
-		mem.w8(0xFF1E, 0xBF); // NR33
-		mem.w8(0xFF20, 0xFF); // NR41
-		mem.w8(0xFF21, 0x00); // NR42
-		mem.w8(0xFF22, 0x00); // NR43
-		mem.w8(0xFF23, 0xBF); // NR30
-		mem.w8(0xFF24, 0x77); // NR50
-		mem.w8(0xFF25, 0xF3); // NR51
-		mem.w8(0xFF26, sgb ? 0xF0 : 0xF1); // NR52
-		mem.w8(0xFF40, 0x91); // LCDC
-		mem.w8(0xFF42, 0x00); // SCY
-		mem.w8(0xFF43, 0x00); // SCX
-		mem.w8(0xFF45, 0x00); // LYC
-		mem.w8(0xFF47, 0xFC); // BGP
-		mem.w8(0xFF48, 0xFF); // OBP0
-		mem.w8(0xFF49, 0xFF); // OBP1
-		mem.w8(0xFF4A, 0x00); // WY
-		mem.w8(0xFF4B, 0x00); // WX
-		mem.w8(0xFFFF, 0x00); // IE
+		mw8(0xFF05, 0x00); // TIMA
+		mw8(0xFF06, 0x00); // TMA
+		mw8(0xFF07, 0x00); // TAC
+		mw8(0xFF10, 0x80); // NR10
+		mw8(0xFF11, 0xBF); // NR11
+		mw8(0xFF12, 0xF3); // NR12
+		mw8(0xFF14, 0xBF); // NR14
+		mw8(0xFF16, 0x3F); // NR21
+		mw8(0xFF17, 0x00); // NR22
+		mw8(0xFF19, 0xBF); // NR24
+		mw8(0xFF1A, 0x7F); // NR30
+		mw8(0xFF1B, 0xFF); // NR31
+		mw8(0xFF1C, 0x9F); // NR32
+		mw8(0xFF1E, 0xBF); // NR33
+		mw8(0xFF20, 0xFF); // NR41
+		mw8(0xFF21, 0x00); // NR42
+		mw8(0xFF22, 0x00); // NR43
+		mw8(0xFF23, 0xBF); // NR30
+		mw8(0xFF24, 0x77); // NR50
+		mw8(0xFF25, 0xF3); // NR51
+		mw8(0xFF26, sgb ? 0xF0 : 0xF1); // NR52
+		mw8(0xFF40, 0x91); // LCDC
+		mw8(0xFF42, 0x00); // SCY
+		mw8(0xFF43, 0x00); // SCX
+		mw8(0xFF45, 0x00); // LYC
+		mw8(0xFF47, 0xFC); // BGP
+		mw8(0xFF48, 0xFF); // OBP0
+		mw8(0xFF49, 0xFF); // OBP1
+		mw8(0xFF4A, 0x00); // WY
+		mw8(0xFF4B, 0x00); // WX
+		mw8(0xFFFF, 0x00); // IE
+	}
+
+	void mw8(u16 addr, u8 v) {
+		//if (addr == 0xC021) printf("MEM[%04X] <- (%02X) | PC(%04X)\r", addr, v, PC);
+		//if (addr == 0xFF88) printf("MEM[%04X] <- (%02X) | PC(%04X)\r", addr, v, PC);
+		if (addr == 0xC212) printf("MEM[%04X] <- (%02X) | PC(%04X)\r", addr, v, PC);
+		mem.w8(addr, v);
 	}
 
 	// Un VBLANK se ejecuta 59.7 veces por segundo en la GB y 61.1 en SGB
@@ -328,6 +336,7 @@ class GameBoy {
 	void load(Stream s) {
 		mem.load(s);
 		s.readExact(&A, (&IME - &A) + IME.sizeof);
+		stop = false;
 	}
 
 	void load(char[] name) {
@@ -356,20 +365,9 @@ class GameBoy {
 		}
 	}
 
-	void updateStatus() {
-		console.move(0, 0);
-		console.print(repeat("-", 80));
-		console.move(1, 8);
-		console.print(format("PC: %04X | SP: %04X | AF: %04X | BC: %04X | DE: %04X | HL: %04X", PC, SP, AF, BC, DE, HL));
-		console.move(2, 0);
-		console.print(repeat("-", 80));
-		console.move(3, 2);
-		console.print("F1-F4 - Guardar estados | F5-F8 - Cargar estados | ENTER,ESPACIO,Z,X botones");
-		console.move(4, 0);
-		console.print(repeat("-", 80));
-
-		for (int y = 0, n = 0xFE00; y < 5; y++) {
-			console.move(5 + y, 0);
+	void writeMem(u16 addr, int line, int lines = 5) {
+		for (int y = 0, n = addr; y < lines; y++) {
+			console.move(line + y, 0);
 
 			console.print(format("%04X: [", n));
 
@@ -389,14 +387,33 @@ class GameBoy {
 
 			n += 16;
 		}
+	}
 
-		console.move(10, 0);
+	void updateStatus() {
+		console.move(0, 0);
+		console.print(repeat("-", 80));
+		console.move(1, 8);
+		console.print(format("PC: %04X | SP: %04X | AF: %04X | BC: %04X | DE: %04X | HL: %04X", PC, SP, AF, BC, DE, HL));
+		console.move(2, 0);
+		console.print(repeat("-", 80));
+		console.move(3, 2);
+		console.print("F1-F4 - Guardar estados | F5-F8 - Cargar estados | ENTER,ESPACIO,Z,X botones");
+		console.move(4, 0);
+		console.print(repeat("-", 80));
+
+		writeMem(0xFE00, 5);
+
+		//writeMem(0xFF80, 11, 8);
+		writeMem(0xC200, 11, 8);
+
+		console.move(20, 0);
 
 		console.refresh();
 
 		//printf("PC: %04X\r", PC);
 	}
 
+	bool stop;
 	bool showinst;
 	// Interpreta una sucesión de opcodes
 	void interpret() {
@@ -406,6 +423,8 @@ class GameBoy {
 		void *reg_cb;
 		bool hl;
 		int cp = 0;
+
+		stop = false;
 
 		void traceInstruction(int PC, int count = 1) {
 			while (count > 0) {
@@ -437,7 +456,7 @@ class GameBoy {
 				case 0b000: B = v; return; case 0b001: C = v; return;
 				case 0b010: D = v; return; case 0b011: E = v; return;
 				case 0b100: H = v; return; case 0b101: L = v; return;
-				case 0b110: mem.w8(HL, v); return; case 0b111: A = v; return;
+				case 0b110: mw8(HL, v); return; case 0b111: A = v; return;
 			}
 		}
 
@@ -445,6 +464,13 @@ class GameBoy {
 			switch (r & 0b11) {
 				case 0b000: return &BC; case 0b001: return &DE;
 				case 0b010: return &HL; case 0b011: return &SP;
+			}
+		}
+
+		u16* addrr16pp(u8 r) {
+			switch (r & 0b11) {
+				case 0b000: return &BC; case 0b001: return &DE;
+				case 0b010: return &HL; case 0b011: return &AF;
 			}
 		}
 
@@ -459,8 +485,16 @@ class GameBoy {
 			return *addrr16(r);
 		}
 
+		u16  getr16pp(u8 r) {
+			return *addrr16pp(r);
+		}
+
 		void setr16(u8 r, u16 v) {
 			*addrr16(r) = v;
+		}
+
+		void setr16pp(u8 r, u16 v) {
+			*addrr16pp(r) = v;
 		}
 
 		// Leer parámetros
@@ -475,7 +509,15 @@ class GameBoy {
 
 			//printf("%04X - %s\t\t\t\r", strip(disasm(PC)));
 			if ((cp % 0x10) == 0) updateCycles();
-			if ((cp % 0x1000) == 0) updateStatus();
+			version (trace) {
+			} else {
+				if ((cp % 0x3000) == 0) updateStatus();
+			}
+
+			if (stop) {
+				ghs.KeepAlive();
+				continue;
+			}
 
 			// Decodificamos la instrucción
 			op = mem.r8(PC++);
@@ -489,6 +531,7 @@ class GameBoy {
 				if (!mem.traced(CPC)) {
 					showinst = true;
 					traceInstruction(CPC);
+					RegDump();
 					mem.trace(CPC);
 				}
 			}
@@ -559,7 +602,7 @@ class GameBoy {
 								u16 v16 = (r2 & 0b100) ? HL : getr16(r22 & 0b11);
 								if (!(r2 & 0b1)) {
 									version(trace) TRACE(format("LD [%04X], A", v16));
-									mem.w8(v16, A);
+									mw8(v16, A);
 								} else {
 									version(trace) TRACE(format("LD A, [%04X]", v16));
 									A = mem.r8(v16);
@@ -614,7 +657,7 @@ class GameBoy {
 									if (getflag(r23 & 0b11)) RET();
 								} else {
 									switch (r23 & 0b11) {
-										case 0b00: version(trace) TRACE(format("LD [0xFF00+$%02X], A", pu8)); mem.w8(0xFF00 | pu8, A);  break; // LD ($FF00 + nn), A // special (old ret po)
+										case 0b00: version(trace) TRACE(format("LD [0xFF00+$%02X], A", pu8)); mw8(0xFF00 | pu8, A);  break; // LD ($FF00 + nn), A // special (old ret po)
 										case 0b01: version(trace) TRACE(format("ADD SP, %d", ps8)); ADDSP(ps8); break; // ADD SP, dd // special (old ret pe) (nocash extended as shortint)
 										case 0b10: version(trace) TRACE(format("LD A, [0xFF00+$%02X]", pu8)); A = mem.r8(0xFF00 | pu8); break; // LD A, ($FF00 + nn) // special (old ret p)
 										case 0b11: // TODO: SET FLAGS
@@ -628,7 +671,7 @@ class GameBoy {
 								if ((r23 & 0b001) == 0) {
 									version(trace) TRACE(format("POP r%d", r22));
 									//TRACE(format("POP r : %04X", getr16(r22)));
-									setr16(r22, POP());
+									setr16pp(r22, POP());
 									//TRACE(format("POP r : %04X", getr16(r22)));
 								} else {
 									switch (r22) {
@@ -641,11 +684,12 @@ class GameBoy {
 							break;
 							case 0b010:
 								if ((r23 & 0b100) == 0) {
+									version(trace) TRACE(format("JP (%02b) $%04X", r23 & 0b11, pu16));
 									if (getflag(r23 & 0b11)) JP(pu16);
 								} else {
 									switch (r23 & 0b11) {
-										case 0b00: version(trace) TRACE(format("LD [0xFF00+C], A"     )); mem.w8(0xFF00 | C, A); break;
-										case 0b01: version(trace) TRACE(format("LD [$%04X], A",   pu16)); mem.w8(pu16, A); break;
+										case 0b00: version(trace) TRACE(format("LD [0xFF00+C], A"     )); mw8(0xFF00 | C, A); break;
+										case 0b01: version(trace) TRACE(format("LD [$%04X], A",   pu16)); mw8(pu16, A); break;
 										case 0b10: version(trace) TRACE(format("LD A, [0xFF00+C]"     )); A = mem.r8(0xFF00 | C); break;
 										case 0b11: version(trace) TRACE(format("LD A, [$%04X]",   pu16)); A = mem.r8(pu16); break;
 									}
@@ -665,17 +709,24 @@ class GameBoy {
 							break;
 							case 0b100:
 								if ((r23 & 0b100) == 0) {
-									if (getflag(r23 & 0b11)) CALL(pu16);
+									if (getflag(r23 & 0b11)) {
+										version(trace) TRACE(format("CALL $%04X", pu16));
+										CALL(pu16);
+									}
 								} else {
 									writefln("INVALID OP (%02X)", op); exit(-1); // E4, EC, F4, FC
 								}
 							break;
 							case 0b101:
 								if ((r23 & 0b001) == 0) {
-									PUSH(getr16(r22));
+									version(trace) TRACE(format("PUSH r%d", r22));
+									PUSH(getr16pp(r22));
 								} else {
 									switch (r22) {
-										case 0b00: CALL(pu16); break;
+										case 0b00:
+											version(trace) TRACE(format("CALL $%04X", pu16));
+											CALL(pu16);
+										break;
 										case 0b01: writefln("INVALID OP (%02X)", op); exit(-1); break;
 										case 0b10: writefln("INVALID OP (%02X)", op); exit(-1); break;
 										case 0b11: writefln("INVALID OP (%02X)", op); exit(-1); break;
@@ -854,9 +905,12 @@ class GameBoy {
 Console console;
 
 static this() {
-	console = new Console();
-	//console.clear();
-	//console.refresh();
+	version (trace) {
+	} else {
+		console = new Console();
+		//console.clear();
+		//console.refresh();
+	}
 }
 
 static ~this() {

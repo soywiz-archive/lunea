@@ -27,16 +27,18 @@ class GBWinSDL : GameboyHostSystem {
 	void DelayVBlank() {
 		f96 sec;
 		static u64 start = 0, current = 0;
+		static f96 payload = 0.0f;
 
-		if (start != 0) {
-			while (true) {
-				QueryPerformanceCounter(&current);
-				sec = cast(f96)(current - start) / cast(f96)qpfreq;
-				//printf("%f - %f\r", cast(float)sec, cast(float)(1.0f / 59.73f));
-				if (sec >= 1.0f / 59.73f) break;
-			}
-		} else {
+		if (start == 0) QueryPerformanceCounter(&start);
+
+		while (true) {
 			QueryPerformanceCounter(&current);
+			sec = cast(f96)(current - start) / cast(f96)qpfreq;
+			//printf("%f - %f\r", cast(float)sec, cast(float)(1.0f / 59.73f));
+			if (sec - payload >= 1.0f / 59.73f) {
+				payload = (sec - payload) - 1.0f / 59.73f;
+				break;
+			}
 		}
 
 		start = current;
@@ -78,7 +80,7 @@ class GBWinSDL : GameboyHostSystem {
 	}
 
 	void UpdateScreen(int type, u8* LCDSCR) {
-		static f96 fps = 59.73, fps_back = 59.73; static u64 start = 0, current = 0;
+		static f96 fps = 59.73, fps_back = 59.73; static u64 start = 0, current = 0, count = 0;
 
 		QueryPerformanceCounter(&current);
 
@@ -86,9 +88,15 @@ class GBWinSDL : GameboyHostSystem {
 
 		start = current;
 
-		SDL_WM_SetCaption(toStringz(format("GameBoy %4.1f fps", cast(f32)fps_back)), null);
+		count++;
+
+		if (count >= 15) {
+			SDL_WM_SetCaption(toStringz(format("GameBoy %4.1f fps", cast(f32)fps_back)), null);
+			count = 0;
+		}
 
 		fps_back = (cast(f96)fps + (cast(f96)fps_back * cast(f96)120)) / cast(f96)(120 + 1);
+		//fps_back = (cast(f96)fps + (cast(f96)fps_back * cast(f96)0)) / cast(f96)(1);
 
 		SDL_Rect drect, srect;
 		drect.x = drect.y = 0;
@@ -117,7 +125,7 @@ class GBWinSDL : GameboyHostSystem {
 
 		//SDL_UpdateRect(buffer, 0, 0, 160, 144);
 		//SDL_BlitSurface(buffer, &srect, screen, &drect);
-		SDL_LockSurface(screen);
+		//SDL_LockSurface(screen);
 		u32* src = cast(u32*)buffer.pixels, dst = cast(u32*)screen.pixels;
 		for (int y = 0; y < 144; y++) {
 			for (int x = 0; x < 160; x++) {
@@ -132,7 +140,7 @@ class GBWinSDL : GameboyHostSystem {
 				dst[pos + 1 + screen.w] = dst[pos + screen.w] = c;
 			}
 		}
-		SDL_UnlockSurface(screen);
+		//SDL_UnlockSurface(screen);
 		SDL_UpdateRect(screen, 0, 0, 160 * 2, 144 * 2);
 
 		DelayVBlank();
