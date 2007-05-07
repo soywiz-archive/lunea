@@ -205,6 +205,10 @@ class GameBoy {
 		rh = cast(RomHeader *)(mem.addr(0x100));
 	}
 
+	void unloadRom() {
+		if (rom) rom.close();
+	}
+
 	// Elegimos el banco0 de la rom (será fijo siempre)
 	void switchRomBank0(u8 bank) {
 		rom.position = 0x4000 * bank;
@@ -411,7 +415,7 @@ class GameBoy {
 		//printf("PC: %04X\r", PC);
 	}
 
-	bool stop;
+	bool stop, stopped;
 	bool showinst;
 	u16 CPC;
 
@@ -519,8 +523,11 @@ class GameBoy {
 			}
 
 			if (stop) {
+				stopped = true;
 				ghs.UpdateScreen(0, lcd.LCDIMG.ptr);
 				continue;
+			} else {
+				stopped = false;
 			}
 
 			// Decodificamos la instrucción
@@ -640,7 +647,7 @@ class GameBoy {
 								TRACE(format("HALT"));
 								writefln("HALT");
 							}
-							HALT();
+							//HALT();
 						} else {
 							version(trace) TRACE(format("LD r%d, r%d | v:%02X", r2, r1, getr8(r1)));
 							setr8(r2, getr8(r1));

@@ -35,14 +35,26 @@ class LCD {
 		}
 	}
 
-	void DrawSprite(u16* tile, u8 pal, uint px, uint py) {
-		//for (int n = 0; n < 16; n++) writef("%02X ", tile[n]); writefln();
+	/*
+		Bit7   OBJ-to-BG Priority (0=OBJ Above BG, 1=OBJ Behind BG color 1-3)
+		 (Used for both BG and Window. BG color 0 is always behind OBJ)
+		Bit6   Y flip          (0=Normal, 1=Vertically mirrored)
+		Bit5   X flip          (0=Normal, 1=Horizontally mirrored)
+		Bit4   Palette number  **Non CGB Mode Only** (0=OBP0, 1=OBP1)
+		Bit3   Tile VRAM-Bank  **CGB Mode Only**     (0=Bank 0, 1=Bank 1)
+		Bit2-0 Palette number  **CGB Mode Only**     (OBP0-7)
+	*/
+	void DrawSprite(u16* tile, u8 pal, uint px, uint py, u8 A) {
 		for (int y = 0; y < 8; y++) {
 			u16 v = tile[y];
 			for (int x = 0; x < 8; x++) {
 				u8 c = ((v >> x) & 0b1) | ((v >> 7 >> x) & 0b10);
 				if (c == 0) continue;
-				PutPixel(px + 7 - x, py + y, c);
+				PutPixel(
+					(A & (1 << 5)) ? (px + 0 + x) : (px + 7 - x),
+					(A & (1 << 6)) ? (py + 7 - y) : (py + 0 + y),
+					c
+				);
 			}
 		}
 	}
@@ -65,7 +77,7 @@ class LCD {
 			u8 N = RAM[0xFE00 + n * 4 + 2];
 			u8 A = RAM[0xFE00 + n * 4 + 3];
 
-			DrawSprite(cast(u16*)&RAM[0x8000 + N * 0x10], 0, cast(int)(X) - 0x08, cast(int)(Y) - 0x10);
+			DrawSprite(cast(u16*)&RAM[0x8000 + N * 0x10], 0, cast(int)(X) - 0x08, cast(int)(Y) - 0x10, A);
 		}
 	}
 }
