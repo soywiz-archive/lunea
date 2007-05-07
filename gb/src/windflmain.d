@@ -32,7 +32,31 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 
 	this() {
 		initializeMainForm();
-		initKeyTranslator();
+		initializeKeyTranslator();
+		
+		MenuItem openRom, exit;
+		
+		this.menu = new MainMenu([
+			new MenuItem("&Archivo", [
+				openRom = new MenuItem("&Abrir ROM"),
+				new MenuItem("-"),
+				exit = new MenuItem("&Salir")
+			])
+		]);
+		
+		openRom.click ~= &optionOpenRom;
+		//exit.click = &optionExit;
+	}
+	
+	void optionOpenRom(MenuItem mi, EventArgs ea) {
+		OpenFileDialog ofd = new OpenFileDialog;
+		ofd.filter = "GameBoy files (*.gb)|*.gb";
+		ofd.initialDirectory = Application.startupPath ~ "\\roms";
+		ofd.showDialog();
+	}
+
+	void optionExit(MenuItem mi, EventArgs ea) {
+		Application.exit();
 	}
 
 
@@ -54,7 +78,7 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 		keyTranslator[cast(uint)skey] = gkey;
 	}
 	
-	void initKeyTranslator() {
+	void initializeKeyTranslator() {
 		setKey(Keys.UP   , JoyPAD.Key.UP);
 		setKey(Keys.LEFT , JoyPAD.Key.LEFT);
 		setKey(Keys.DOWN , JoyPAD.Key.DOWN);
