@@ -8,7 +8,7 @@ import gameboy.lcd;
 import gameboy.joypad;
 import gameboy.memory;
 
-import std.stdio, std.string, std.stream, std.c.stdlib, std.zlib, std.system;
+import std.stdio, std.string, std.stream, std.c.stdlib, std.zlib, std.system, std.c.string;
 
 // Diferentes versiones (depuración etc.)
 //version = trace;
@@ -124,6 +124,20 @@ class GameBoy {
 		u16 gchecksum;    // 014E-014F - Global Checksum (Produced by adding all bytes of the cartridge (except for the two checksum bytes))
 	}
 
+	char[] romName() {
+		char[] title;
+		char *ptr = cast(char *)rh.title;
+		int len = strlen(ptr);
+		for (int n = 0; n < len; n++) {
+			if (ptr[n] >= 32 && ptr[n] <= 0x7F) {
+				title ~= ptr[n];
+			} else {
+				title ~= "";
+			}
+		}
+		return strip(title);
+	}
+
 	GameboyHostSystem ghs;
 	Stream    rom; // Stream
 	RomHeader *rh; // Header
@@ -201,8 +215,6 @@ class GameBoy {
 	void loadRom(char[] name) { loadRom(new File(name, FileMode.In)); }
 	void loadRom(Stream s) {
 		rom = s;
-		switchRomBank0(0);
-		switchRomBank1(1);
 		rh = cast(RomHeader *)(mem.addr(0x100));
 	}
 
@@ -227,6 +239,9 @@ class GameBoy {
 	// generalmente los emuladores la vacían a 0. Aún así, los propios juegos deben
 	// definir la memória que quieran usar.
 	void init() {
+		switchRomBank0(0);
+		switchRomBank1(1);
+
 		AF = 0x01B0; BC = 0x0013;
 		DE = 0x00D8; HL = 0x014D;
 		SP = 0xFFFE; PC = 0x0100;

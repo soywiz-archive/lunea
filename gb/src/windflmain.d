@@ -16,7 +16,7 @@ extern(Windows) {
 }
 
 class String {
-	char[] value;	
+	char[] value;
 	this(char[] value) { this.value = value; }
 	override char[] toString() { return value; }
 }
@@ -26,19 +26,19 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 	//~Entice Designer variables begin here.
 	dfl.picturebox.PictureBox pictureBox1;
 	//~Entice Designer variables end here.
-	
+
 	GameBoy gb;
-	
+
 	static f96 qpfreq = 0;
-	
+
 	static this() {
 		u64 qpfreqv;
 		QueryPerformanceFrequency(&qpfreqv);
-		qpfreq = cast(f96)qpfreqv;			
+		qpfreq = cast(f96)qpfreqv;
 	}
-	
+
 	void UpdateFPS() {
-		static f96 fps = 59.73, fps_back = 59.73; static u64 start = 0, current = 0, count = 0;		
+		static f96 fps = 59.73, fps_back = 59.73; static u64 start = 0, current = 0, count = 0;
 
 		QueryPerformanceCounter(&current);
 
@@ -53,9 +53,9 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 			count = 0;
 		}
 
-		fps_back = (cast(f96)fps + (cast(f96)fps_back * cast(f96)120)) / cast(f96)(120 + 1);		
+		fps_back = (cast(f96)fps + (cast(f96)fps_back * cast(f96)120)) / cast(f96)(120 + 1);
 	}
-	
+
 	void DelayVBlank() {
 		f96 sec;
 		static u64 start = 0, current = 0;
@@ -73,25 +73,27 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 			}
 		}
 
+		Sleep(0);
+
 		start = current;
 	}
-	
+
 	u16[] screenData;
 	HDC hdc;
 	BITMAPINFO bi;
-	
+
 	void DrawScreenData() {
 		this.hdc = pictureBox1.createGraphics().handle;
 		StretchDIBits(hdc, 0, 0, pictureBox1.width, pictureBox1.height, 0, 0, 160, 144, screenData.ptr, &bi, 0, SRCCOPY);
 	}
-	
+
 	/*void onPaint(Control c, PaintEventArgs pea) {
 		DrawScreenData();
 	}*/
-	
+
 	void UpdateScreen(int type, u8* LCDSCR) {
 		UpdateFPS();
-		{			
+		{
 			switch (type) {
 				case 0: default: case 1: {
 					u16 RGB16(int r, int g, int b) {
@@ -106,7 +108,7 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 					palette[1] = RGB16(0x8C, 0xAA, 0x14);
 					palette[2] = RGB16(0x30, 0x64, 0x30);
 					palette[3] = RGB16(0x10, 0x3F, 0x10);
-					
+
 					screenData.length = 144 * 160;
 					for (int y = 0, n1 = 0, n2 = 0; y < 144; y++) {
 						for (int x = 0; x < 160; x += 4, n1++) {
@@ -116,8 +118,8 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 							screenData[n2++] = palette[(b >> 4) & 0b11];
 							screenData[n2++] = palette[(b >> 6) & 0b11];
 						}
-					}				
-					
+					}
+
 					DrawScreenData();
 				} break;
 			}
@@ -128,14 +130,14 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 	void attach(GameBoy gb) {
 		this.gb = gb;
 	}
-	
+
 	void updateClientSize() {
 		this.setClientSizeCore(
 			this.width  + (320 - pictureBox1.width),
 			this.height + (288 - pictureBox1.height)
 		);
-		
-		this.centerToScreen();			
+
+		this.centerToScreen();
 		this.refresh();
 	}
 
@@ -144,7 +146,7 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 		initializeKeyTranslator();
 
 		updateClientSize();
-		
+
 		addShortcut(Keys.F1, &optionSaveState);
 		addShortcut(Keys.F2, &optionSaveState);
 		addShortcut(Keys.F3, &optionSaveState);
@@ -154,7 +156,7 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 		addShortcut(Keys.F6, &optionLoadState);
 		addShortcut(Keys.F7, &optionLoadState);
 		addShortcut(Keys.F8, &optionLoadState);
-			
+
 		with (bi.bmiHeader) {
 			biSize      = 40;
 			biWidth     = 160;
@@ -163,7 +165,7 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 			biBitCount  = 16;
 			biSizeImage = 46080;
 		}
-		
+
 		MenuItem cMenuItem(char[] text, MenuItem[] mil = null, void delegate(MenuItem, EventArgs) click = null, char[] name = "") {
 			MenuItem mi = new MenuItem(text, mil);
 			if (click) mi.click ~= click;
@@ -195,34 +197,36 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 			]),
 			cMenuItem("&Ayuda", [
 				cMenuItem("&Sobre...")
-			])			
+			])
 		]);
-		
-		this.icon = Application.resources.getIcon(101);		
+
+		this.icon = Application.resources.getIcon(101);
 	}
 	
+	char[] stateFile(int id) { return format("sshots\\%s.%d", gb.romName, id); }
+
 	void saveState(char[] name) { gb.save(name); }
-	void saveState(int id) { saveState(format("dump.%d", id)); }
+	void saveState(int id) { saveState(stateFile(id)); }
 
 	void loadState(char[] name) { gb.load(name); }
-	void loadState(int id) { loadState(format("dump.%d", id)); }
+	void loadState(int id) { loadState(stateFile(id)); }
 
-	
+
 	private void optionSaveState(Object sender, FormShortcutEventArgs ea) {
 		if (ea.shortcut >= Keys.F1 && ea.shortcut <= Keys.F4) saveState(ea.shortcut - Keys.F1 + 1);
-	}	
+	}
 
 	private void optionLoadState(Object sender, FormShortcutEventArgs ea) {
 		if (ea.shortcut >= Keys.F5 && ea.shortcut <= Keys.F8) loadState(ea.shortcut - Keys.F5 + 1);
-	}	
-	
+	}
+
 	void optionSaveState(MenuItem mi, EventArgs ea) {
 		char[] s = mi.tag.toString; if (s.length < 2 || s[0] != 's') return;
 		int v = s[1] - '0'; if (v >= 1 && v <= 4) saveState(v);
 	}
-	
+
 	void optionLoadState(MenuItem mi, EventArgs ea) {
-		char[] s = mi.tag.toString; if (s.length < 2 || s[0] != 'l') return;		
+		char[] s = mi.tag.toString; if (s.length < 2 || s[0] != 'l') return;
 		int v = s[1] - '0'; if (v >= 1 && v <= 4) loadState(v);
 	}
 
@@ -232,7 +236,7 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 		gb.init();
 		gb.stop = false;
 	}
-	
+
 	void optionOpenRom(MenuItem mi, EventArgs ea) {
 		gbt.pause();
 		OpenFileDialog ofd = new OpenFileDialog;
@@ -240,17 +244,17 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 		ofd.initialDirectory = Application.startupPath ~ "\\roms";
 		if (ofd.showDialog() == DialogResult.OK) {
 			gbt.resume();
-			
+
 			chdir(Application.startupPath);
 
 			gb.unloadRom();
-			
+
 			gb.stop = true;
 			while (!gb.stopped) Sleep(1);
 
 			gb.loadRom(ofd.fileName);
 			gb.init();
-				
+
 			gb.stop = false;
 		} else {
 			gbt.resume();
@@ -281,11 +285,11 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 	}
 
 	JoyPAD.Key[uint] keyTranslator;
-	
+
 	void setKey(Keys skey, JoyPAD.Key gkey) {
 		keyTranslator[cast(uint)skey] = gkey;
 	}
-	
+
 	void initializeKeyTranslator() {
 		setKey(Keys.UP   , JoyPAD.Key.UP);
 		setKey(Keys.LEFT , JoyPAD.Key.LEFT);
@@ -297,7 +301,7 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 		setKey(Keys.SPACE, JoyPAD.Key.SELECT);
 		setKey(Keys.ENTER, JoyPAD.Key.START);
 	}
-		
+
 	bool preFilterMessage(inout Message m) {
 		if (this.pictureBox1.handle != m.hWnd && this.handle != m.hWnd) return false;
 		switch (m.msg) {
@@ -306,17 +310,17 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 				if (m.msg == 257) {
 					if (m.wParam == 27) Application.exit();
 				}
-				
-				if (gb && gb.pad && m.wParam in keyTranslator) {					
+
+				if (gb && gb.pad && m.wParam in keyTranslator) {
 					JoyPAD.Key key = keyTranslator[m.wParam];
 					if (m.msg == 256) gb.pad.Press(key); else gb.pad.Release(key);
-				}				
+				}
 			break;
 			default: break;
-		}		
+		}
 		return false;
 	}
-	
+
 }
 
 MainForm mainForm;
@@ -324,7 +328,7 @@ GameboyThread gbt;
 
 class GameboyThread : Thread {
 	GameBoy gb;
-	
+
 	override int run() {
 		gb = new GameBoy(mainForm);
 
@@ -333,12 +337,12 @@ class GameboyThread : Thread {
 			gb.init();
 
 			try {
-				gb.interpret();		
+				gb.interpret();
 			} catch (Object o) {
-				msgBox(o.toString(), "Emulation Error", MsgBoxButtons.OK, MsgBoxIcon.EXCLAMATION);	
+				msgBox(o.toString(), "Emulation Error", MsgBoxButtons.OK, MsgBoxIcon.EXCLAMATION);
 			}
 		}
-		
+
 		return 0;
 	}
 }
@@ -349,14 +353,14 @@ int main()
 	int result = 0;
 
 	try {
-		
+
 		mainForm = new MainForm();
-		
+
 		(gbt = new GameboyThread()).start();
-		
+
 		Application.addMessageFilter(mainForm);
 		Application.run(mainForm);
-		
+
 	} catch(Object o) {
 		msgBox(o.toString(), "Fatal Error", MsgBoxButtons.OK, MsgBoxIcon.ERROR);
 
