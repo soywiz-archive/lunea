@@ -4,7 +4,7 @@ SET GB_D_COMPILER=dfl
 SET GB_D_LIB=lib\pdcurses.lib gdi32.lib
 SET GB_D_INCLUDES=src\curses\pdcurses.d
 SET GB_D_MODULES=src\gb\z80.d src\gb\joypad.d src\gb\lcd.d src\gb\common.d src\gb\memory.d src\gb\tables.d
-SET GB_D_MAIN_DFL=src\gui\main.d src\gui\about.d
+SET GB_D_MAIN_DFL=src\gui\main.d src\gui\about.d src\gui\debug\registers.d src\gui\debug\debug.d
 SET GB_D_RESOURCES=src\gui\gameboy.res
 
 del /q gameboy.exe 2> NUL
@@ -14,6 +14,6 @@ del /q *.obj 2> NUL
 del /q gameboy.map 2> NUL
 del /q %GB_D_RESOURCES% 2> NUL
 if NOT EXIST "gameboy.exe" GOTO end
-cls
+REM cls
 gameboy.exe
 :end

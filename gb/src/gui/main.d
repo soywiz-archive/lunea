@@ -8,6 +8,8 @@ module gui.main;
 
 private import gui.about;
 
+private import gui.gdebug.main;
+
 private import dfl.all, dfl.internal.winapi;
 private import std.stdio, std.thread, std.string, std.file;
 private import gameboy.z80, gameboy.joypad;
@@ -77,7 +79,7 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 			}
 		}
 
-		Sleep(0);
+		Sleep(1);
 
 		start = current;
 	}
@@ -204,6 +206,7 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 			]),
 			cMenuItem("&Emulación", [
 				cMenuItem("&Reiniciar", null, &optionReset),
+				cMenuItem("&Depurador", null, &optionDebug),
 				new MenuItem("&Vista", [
 					cMenuItem("1x\tAlt+1", null, &optionSizeChange, "1"),
 					cMenuItem("2x\tAlt+2", null, &optionSizeChange, "2"),
@@ -276,6 +279,10 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 		gb.stop = false;
 	}
 
+	void optionDebug(MenuItem mi, EventArgs ea) {
+		(new DebugForm()).show();
+	}
+
 	void optionOpenRom(MenuItem mi, EventArgs ea) {
 		gbt.pause();
 		OpenFileDialog ofd = new OpenFileDialog;
@@ -341,6 +348,7 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 	}
 
 	bool preFilterMessage(inout Message m) {
+		//printf("%d %08X\r", m.msg, m.hWnd);
 		if (this.pictureBox1.handle != m.hWnd && this.handle != m.hWnd) return false;
 		switch (m.msg) {
 			case 256: // WM_KEYDOWN
@@ -374,6 +382,7 @@ class GameboyThread : Thread {
 	override int run() {
 		gb = new GameBoy(mainForm);
 
+		//gb.loadRom("ROMS\\TETRIS.GB");
 		gb.loadRom("ROMS\\MARIO.GB");
 		while (true) {
 			gb.init();
@@ -399,7 +408,7 @@ int main()
 		mainForm = new MainForm();
 
 		(gbt = new GameboyThread()).start();
-
+		
 		Application.addMessageFilter(mainForm);
 		Application.run(mainForm);
 
