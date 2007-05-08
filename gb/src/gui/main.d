@@ -4,6 +4,10 @@
 	www.dprogramming.com/entice.php
 */
 
+module gui.main;
+
+private import gui.about;
+
 private import dfl.all, dfl.internal.winapi;
 private import std.stdio, std.thread, std.string, std.file;
 private import gameboy.z80, gameboy.joypad;
@@ -80,7 +84,8 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 
 	u16[] screenData;
 	HDC hdc;
-	BITMAPINFO bi;
+	BITMAPINFO bi;	
+	Timer timer;
 
 	void DrawScreenData() {
 		this.hdc = pictureBox1.createGraphics().handle;
@@ -131,12 +136,14 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 		this.gb = gb;
 	}
 
-	void updateClientSize() {
+	void updateClientSize(int magnifier = 2) {
+		Size size = this.clientSize();
+		
 		this.setClientSizeCore(
-			this.width  + (320 - pictureBox1.width),
-			this.height + (288 - pictureBox1.height)
+			size.width  + (160 * magnifier - pictureBox1.width),
+			size.height + (144 * magnifier - pictureBox1.height)
 		);
-
+		
 		this.centerToScreen();
 		this.refresh();
 	}
@@ -144,8 +151,6 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 	this() {
 		initializeMainForm();
 		initializeKeyTranslator();
-
-		updateClientSize();
 
 		addShortcut(Keys.F1, &optionSaveState);
 		addShortcut(Keys.F2, &optionSaveState);
@@ -156,6 +161,11 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 		addShortcut(Keys.F6, &optionLoadState);
 		addShortcut(Keys.F7, &optionLoadState);
 		addShortcut(Keys.F8, &optionLoadState);
+
+		addShortcut(Keys.ALT | Keys.D1, &optionSizeChange);
+		addShortcut(Keys.ALT | Keys.D2, &optionSizeChange);
+		addShortcut(Keys.ALT | Keys.D3, &optionSizeChange);
+		addShortcut(Keys.ALT | Keys.D4, &optionSizeChange);
 
 		with (bi.bmiHeader) {
 			biSize      = 40;
@@ -193,17 +203,34 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 				cMenuItem("&Salir", null, &optionExit)
 			]),
 			cMenuItem("&Emulación", [
-				cMenuItem("&Reiniciar", null, &optionReset)
+				cMenuItem("&Reiniciar", null, &optionReset),
+				new MenuItem("&Vista", [
+					cMenuItem("1x\tAlt+1", null, &optionSizeChange, "1"),
+					cMenuItem("2x\tAlt+2", null, &optionSizeChange, "2"),
+					cMenuItem("3x\tAlt+3", null, &optionSizeChange, "3"),
+					cMenuItem("4x\tAlt+4", null, &optionSizeChange, "4")
+				])
 			]),
 			cMenuItem("&Ayuda", [
-				cMenuItem("&Sobre...")
+				cMenuItem("&Sobre...", null, &optionShowAbout)
 			])
 		]);
 
 		this.icon = Application.resources.getIcon(101);
+		
+		timer = new Timer();
+		timer.interval = 10;
+		timer.enabled = true;
+		timer.tick ~= &onTimerTick;		
+		timer.start();
 	}
 	
-	char[] stateFile(int id) { return format("sshots\\%s.%d", gb.romName, id); }
+	void onTimerTick(Timer t, EventArgs ea) {
+		updateClientSize(2);
+		t.stop();
+	}
+	
+	char[] stateFile(int id) { return format("states\\%s.%02d.snap", gb.romName, id); }
 
 	void saveState(char[] name) { gb.save(name); }
 	void saveState(int id) { saveState(stateFile(id)); }
@@ -211,6 +238,18 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 	void loadState(char[] name) { gb.load(name); }
 	void loadState(int id) { loadState(stateFile(id)); }
 
+	private void optionSizeChange(MenuItem mi, EventArgs ea) {
+		updateClientSize(std.conv.toInt(mi.tag.toString));
+	}
+	
+	private void optionShowAbout(MenuItem mi, EventArgs ea) {
+		(new About()).showDialog();
+	}
+
+	private void optionSizeChange(Object sender, FormShortcutEventArgs ea) {
+		Keys k = ea.shortcut & ~Keys.ALT;
+		updateClientSize(k - Keys.D0);
+	}
 
 	private void optionSaveState(Object sender, FormShortcutEventArgs ea) {
 		if (ea.shortcut >= Keys.F1 && ea.shortcut <= Keys.F4) saveState(ea.shortcut - Keys.F1 + 1);
@@ -270,16 +309,15 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 		// Do not manually edit this block of code.
 		//~Entice Designer 0.8.2.1 code begins here.
 		//~DFL Form
-		formBorderStyle = dfl.form.FormBorderStyle.FIXED_SINGLE;
 		maximizeBox = false;
 		startPosition = dfl.form.FormStartPosition.CENTER_SCREEN;
 		text = "GameBoy";
-		clientSize = dfl.drawing.Size(294, 273);
+		clientSize = dfl.drawing.Size(292, 271);
 		//~DFL dfl.picturebox.PictureBox=pictureBox1
 		pictureBox1 = new dfl.picturebox.PictureBox();
 		pictureBox1.name = "pictureBox1";
 		pictureBox1.dock = dfl.control.DockStyle.FILL;
-		pictureBox1.bounds = dfl.base.Rect(0, 0, 294, 273);
+		pictureBox1.bounds = dfl.base.Rect(0, 0, 292, 271);
 		pictureBox1.parent = this;
 		//~Entice Designer 0.8.2.1 code ends here.
 	}
@@ -312,6 +350,10 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 				}
 
 				if (gb && gb.pad && m.wParam in keyTranslator) {
+					m.wParam &= ~Keys.ALT;
+					m.wParam &= ~Keys.CONTROL;
+					m.wParam &= ~Keys.SHIFT;
+					
 					JoyPAD.Key key = keyTranslator[m.wParam];
 					if (m.msg == 256) gb.pad.Press(key); else gb.pad.Release(key);
 				}

@@ -9,12 +9,6 @@ class LCD {
 
 	int sx, sy;
 
-	// Guardamos el estado del LCD
-	void save(Stream s) { throw(new Exception("TO DO")); }
-
-	// Cargamos el estado del LCD
-	void load(Stream s) { throw(new Exception("TO DO")); }
-
 	void PutPixel(int px, int py, u8 c) {
 		if (px < 0 || px >= 160 || py < 0 || py >= 144) return;
 		u8* b = &LCDIMG[py * 40 + px / 4]; c &= 0b11;
@@ -169,46 +163,4 @@ class LCD {
 	void SetObjectPalette(u8 p, u8 v) {
 		objPalette[p] = v;
 	}
-
-	/+
-	case 0xFF45: // FF45 - LYC - LY Compare (R/W)
-		MEMTRACE(addr, "WRITE LCDC YCOMP");
-		/*
-		The gameboy permanently compares the value of the LYC and LY registers. When both values are identical, the coincident bit in the STAT register becomes set, and (if enabled) a STAT interrupt is requested.
-		*/
-	break;
-	case 0xFF46: // FF46 - DMA - DMA Transfer and Start Address (W)
-		MEMTRACE(addr, "WRITE DMA");
-		/*
-		Writing to this register launches a DMA transfer from ROM or RAM to OAM memory (sprite attribute table). The written value specifies the transfer source address divided by 100h, ie. source & destination are:
-
-			Source:      XX00-XX9F   ;XX in range from 00-F1h
-			Destination: FE00-FE9F
-
-		It takes 160 microseconds until the transfer has completed (80 microseconds in CGB Double Speed Mode), during this time the CPU can access only HRAM (memory at FF80-FFFE). For this reason, the programmer must copy a short procedure into HRAM, and use this procedure to start the transfer from inside HRAM, and wait until the transfer has finished:
-
-			ld  (0FF46h),a ;start DMA transfer, a=start address/100h
-			ld  a,28h      ;delay...
-			wait:           ;total 5x40 cycles, approx 200ms
-			dec a          ;1 cycle
-			jr  nz,wait    ;4 cycles
-
-		Most programs are executing this procedure from inside of their VBlank procedure, but it is possible to execute it during display redraw also, allowing to display more than 40 sprites on the screen (ie. for example 40 sprites in upper half, and other 40 sprites in lower half of the screen).
-		*/
-	break;
-	case 0xFF4A: // FF4A - WY - Window Y Position (R/W)
-		MEMTRACE(addr, "WRITE WIN Y");
-	break;
-	case 0xFF4B: // FF4B - WX - Window X Position minus 7 (R/W)
-		MEMTRACE(addr, "WRITE WIN X");
-		/*
-		Specifies the upper/left positions of the Window area. (The window is an
-		alternate background area which can be displayed above of the normal background.
-		OBJs (sprites) may be still displayed above or behinf the window, just as for normal BG.)
-		The window becomes visible (if enabled) when positions are set in range WX=0..166,
-		WY=0..143. A postion of WX=7, WY=0 locates the window at upper left, it is then completly
-		covering normal background.
-		*/
-	break;
-	+/
 }
