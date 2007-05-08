@@ -287,13 +287,17 @@ class GameBoy {
 	}
 
 	u8 mr8(u16 addr) {
+		if (addr == 0x2000) {
+		}
+
 		return mem.r8(addr);
 	}
 
 	void mw8(u16 addr, u8 v) {
-		//if (addr == 0xC021) printf("MEM[%04X] <- (%02X) | PC(%04X)\r", addr, v, PC);
-		//if (addr == 0xFF88) printf("MEM[%04X] <- (%02X) | PC(%04X)\r", addr, v, PC);
-		//if (addr == 0xC212) printf("MEM[%04X] <- (%02X) | PC(%04X)\r", addr, v, PC);
+		if (addr == 0x2000) {
+			switchRomBank1(v);
+		}
+
 		mem.w8(addr, v);
 	}
 
@@ -319,7 +323,7 @@ class GameBoy {
 	}
 
 	// Procesa las interrupciones
-	void interrupt_process() {
+	void interruptProcess() {
 		if (!IME) return;
 
 		bool check(u8 b) { return (*IF & b) && (*IE & b); }
@@ -341,7 +345,7 @@ class GameBoy {
 			case 0x60: SET(4, IF); break; // Joypad
 		} // switch
 
-		interrupt_process();
+		interruptProcess();
 	}
 
 	// Crea una dump de memória
@@ -906,7 +910,16 @@ class GameBoy {
 	}
 
 // --- NUEVAS INSTRUCCIONES ---------------------------------------------------
+	void HALT() {
+		//writefln("--HALT");
+		//throw(new Exception(format("HALT NOT IMPLEMENTED")));
+	}
 
+	void STOP() {
+		//writefln("--STOP|");
+		//throw(new Exception(format("STOP NOT IMPLEMENTED")));
+		//exit(-1);
+	}
 
 	void IOPCODE(u8 op) { throw(new Exception(format("INVALID OP (%02X)", op))); }
 
@@ -966,18 +979,6 @@ class GameBoy {
 
 	void POP(ref u16 r) { r = mem.r16(SP); SP += 2; }
 
-// --- INSTRUCCIONES ----------------------------------------------------------
-	void HALT() {
-		//writefln("--HALT");
-		//throw(new Exception(format("HALT NOT IMPLEMENTED")));
-	}
-
-	void STOP() {
-		//writefln("--STOP|");
-		//throw(new Exception(format("STOP NOT IMPLEMENTED")));
-		//exit(-1);
-	}
-
 	void NOP() { }
 	void AND(u8 v) { A &= v; ZF = (A == 0); NF = false; HF = true ; CF = false; } // Logical AND
 	void OR (u8 v) { A |= v; ZF = (A == 0); NF = false; HF = false; CF = false; } // Logical OR
@@ -1036,7 +1037,10 @@ class GameBoy {
 	void CALL(u16 addr) { PUSH(PC); JP(addr); } // CALL
 	void CALL(u16 addr, bool cond) { if (cond) { PUSH(PC); PC = addr; } } // CALL
 
-	void RST(u8 v) { CALL(v << 3); } // RESTART AT
+	void RST(u8 v) {
+		printf("RST (%02X)\r", v);
+		CALL(v << 3);
+	} // RESTART AT
 
 	void TRACE(char[] s) {
 		static Stream f;

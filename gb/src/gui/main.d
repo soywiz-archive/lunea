@@ -382,8 +382,8 @@ class GameboyThread : Thread {
 	override int run() {
 		gb = new GameBoy(mainForm);
 
-		gb.loadRom("ROMS\\TETRIS.GB");
-		//gb.loadRom("ROMS\\MARIO.GB");
+		//gb.loadRom("ROMS\\TETRIS.GB");
+		gb.loadRom("ROMS\\MARIO.GB");
 		while (true) {
 			gb.init();
 

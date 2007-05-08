@@ -55,7 +55,7 @@ class Memory {
 			default: break;
 		}
 
-		return *cast(u8 *)(MEM.ptr + addr);
+		return MEM[addr];
 	}
 
 	// Escritura de 8 bits en memoria
@@ -66,8 +66,8 @@ class Memory {
 		}
 
 		if (addr <= 0x4000) {
-			//printf("Escribiendo en ROM [%04X]!!\r", addr);
-			//return;
+			printf("Escribiendo en ROM [%04X] <- %02X!!\r", addr, v);
+			return;
 		}
 
 		switch (addr) {
@@ -87,7 +87,7 @@ class Memory {
 
 		// FF80-FFFE High RAM (HRAM)
 
-		*cast(u8 *)(MEM.ptr + addr) = v;
+		MEM[addr] = v;
 	}
 
 	// Lectura de 16 bits en memoria
