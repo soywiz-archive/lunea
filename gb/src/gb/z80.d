@@ -447,13 +447,15 @@ class GameBoy {
 	bool showinst;
 	u16 CPC;
 
+	void interpretInstruction() {
+	}
+
 	// Interpreta una sucesión de opcodes
 	void interpret() {
 		void *APC;
 		u8 op;
 		void *reg_cb;
 		bool hl;
-		int cp = 0;
 
 		stop = false;
 		dotrace = false;
@@ -474,66 +476,21 @@ class GameBoy {
 			}
 		}
 
-		u8 getr8(u8 r) {
-			switch (r & 0b111) {
-				case 0b000: return B; case 0b001: return C;
-				case 0b010: return D; case 0b011: return E;
-				case 0b100: return H; case 0b101: return L;
-				case 0b110: return mem.r8(HL); case 0b111: return A;
-			}
-		}
-
-		void setr8(u8 r, u8  v) {
-			switch (r & 0b111) {
-				case 0b000: B = v; return; case 0b001: C = v; return;
-				case 0b010: D = v; return; case 0b011: E = v; return;
-				case 0b100: H = v; return; case 0b101: L = v; return;
-				case 0b110: mw8(HL, v); return; case 0b111: A = v; return;
-			}
-		}
-
-		u16* addrr16(u8 r) {
-			switch (r & 0b11) {
-				case 0b000: return &BC; case 0b001: return &DE;
-				case 0b010: return &HL; case 0b011: return &SP;
-			}
-		}
-
-		u16* addrr16pp(u8 r) {
-			switch (r & 0b11) {
-				case 0b000: return &BC; case 0b001: return &DE;
-				case 0b010: return &HL; case 0b011: return &AF;
-			}
-		}
-
-		bool getflag(u8 r) {
-			switch (r & 0b11) {
-				case 0b000: return !ZF; case 0b001: return ZF;
-				case 0b010: return !CF; case 0b011: return CF;
-			}
-		}
-
-		u16  getr16(u8 r) { return *addrr16(r); }
-		u16  getr16pp(u8 r) { return *addrr16pp(r); }
-		void setr16(u8 r, u16 v) { *addrr16(r) = v; }
-		void setr16pp(u8 r, u16 v) { *addrr16pp(r) = v; }
-
 		// Leer parámetros
 		u8  pu8 () { return *cast(u8 *)APC; } s8  ps8 () { return *cast(s8 *)APC; }
 		u16 pu16() { return *cast(u16*)APC; } s16 ps16() { return *cast(s16*)APC; }
 
 		// Bucle principal
+		int cp;
 		while (!pexit) {
+			if (cp++ >= 40000) {
+				updateStatus();
+				cp = 0;
+			}
+
 			CPC = PC;
 
-			cp++;
-
-			//printf("%04X - %s\t\t\t\r", strip(disasm(PC)));
-			if ((cp % 0x10) == 0) updateCycles();
-			version (trace) {
-			} else {
-				if ((cp % 0x3000) == 0) updateStatus();
-			}
+			updateCycles();
 
 			if (stop) {
 				stopped = true;
@@ -711,319 +668,184 @@ class GameBoy {
 				case 0x7E: A = mr8(HL);            break; // LD  A, (HL)
 				case 0x7F: A = A;                  break; // LD  A, A
 
-				case 0x80: ADD(B);              break; // ADD A, B
-				case 0x81: ADD(C);              break; // ADD A, C
-				case 0x82: ADD(D);              break; // ADD A, D
-				case 0x83: ADD(E);              break; // ADD A, E
-				case 0x84: ADD(H);              break; // ADD A, H
-				case 0x85: ADD(L);              break; // ADD A, L
-				case 0x86: ADD(mr8(HL));        break; // ADD A, (HL)
-				case 0x87: ADD(A);              break; // ADD A, A
+				case 0x80: ADD(B);                 break; // ADD A, B
+				case 0x81: ADD(C);                 break; // ADD A, C
+				case 0x82: ADD(D);                 break; // ADD A, D
+				case 0x83: ADD(E);                 break; // ADD A, E
+				case 0x84: ADD(H);                 break; // ADD A, H
+				case 0x85: ADD(L);                 break; // ADD A, L
+				case 0x86: ADD(mr8(HL));           break; // ADD A, (HL)
+				case 0x87: ADD(A);                 break; // ADD A, A
 
-				case 0x88: ADC(B);              break; // ADC A, B
-				case 0x89: ADC(C);              break; // ADC A, C
-				case 0x8A: ADC(D);              break; // ADC A, D
-				case 0x8B: ADC(E);              break; // ADC A, E
-				case 0x8C: ADC(H);              break; // ADC A, H
-				case 0x8D: ADC(L);              break; // ADC A, L
-				case 0x8E: ADC(mr8(HL));        break; // ADC A, (HL)
-				case 0x8F: ADC(A);              break; // ADC A, A
+				case 0x88: ADC(B);                 break; // ADC A, B
+				case 0x89: ADC(C);                 break; // ADC A, C
+				case 0x8A: ADC(D);                 break; // ADC A, D
+				case 0x8B: ADC(E);                 break; // ADC A, E
+				case 0x8C: ADC(H);                 break; // ADC A, H
+				case 0x8D: ADC(L);                 break; // ADC A, L
+				case 0x8E: ADC(mr8(HL));           break; // ADC A, (HL)
+				case 0x8F: ADC(A);                 break; // ADC A, A
 
-				case 0x90: SUB(B);              break; // SUB A, B
-				case 0x91: SUB(C);              break; // SUB A, C
-				case 0x92: SUB(D);              break; // SUB A, D
-				case 0x93: SUB(E);              break; // SUB A, E
-				case 0x94: SUB(H);              break; // SUB A, H
-				case 0x95: SUB(L);              break; // SUB A, L
-				case 0x96: SUB(mr8(HL));        break; // SUB A, (HL)
-				case 0x97: SUB(A);              break; // SUB A, A
+				case 0x90: SUB(B);                 break; // SUB A, B
+				case 0x91: SUB(C);                 break; // SUB A, C
+				case 0x92: SUB(D);                 break; // SUB A, D
+				case 0x93: SUB(E);                 break; // SUB A, E
+				case 0x94: SUB(H);                 break; // SUB A, H
+				case 0x95: SUB(L);                 break; // SUB A, L
+				case 0x96: SUB(mr8(HL));           break; // SUB A, (HL)
+				case 0x97: SUB(A);                 break; // SUB A, A
 
-				case 0x98: SBC(B);              break; // SBC A, B
-				case 0x99: SBC(C);              break; // SBC A, C
-				case 0x9A: SBC(D);              break; // SBC A, D
-				case 0x9B: SBC(E);              break; // SBC A, E
-				case 0x9C: SBC(H);              break; // SBC A, H
-				case 0x9D: SBC(L);              break; // SBC A, L
-				case 0x9E: SBC(mr8(HL));        break; // SBC A, (HL)
-				case 0x9F: SBC(A);              break; // SBC A, A
+				case 0x98: SBC(B);                 break; // SBC A, B
+				case 0x99: SBC(C);                 break; // SBC A, C
+				case 0x9A: SBC(D);                 break; // SBC A, D
+				case 0x9B: SBC(E);                 break; // SBC A, E
+				case 0x9C: SBC(H);                 break; // SBC A, H
+				case 0x9D: SBC(L);                 break; // SBC A, L
+				case 0x9E: SBC(mr8(HL));           break; // SBC A, (HL)
+				case 0x9F: SBC(A);                 break; // SBC A, A
 
-				case 0xA0: AND(B);              break; // AND A, B
-				case 0xA1: AND(C);              break; // AND A, C
-				case 0xA2: AND(D);              break; // AND A, D
-				case 0xA3: AND(E);              break; // AND A, E
-				case 0xA4: AND(H);              break; // AND A, H
-				case 0xA5: AND(L);              break; // AND A, L
-				case 0xA6: AND(mr8(HL));        break; // AND A, (HL)
-				case 0xA7: AND(A);              break; // AND A, A
+				case 0xA0: AND(B);                 break; // AND A, B
+				case 0xA1: AND(C);                 break; // AND A, C
+				case 0xA2: AND(D);                 break; // AND A, D
+				case 0xA3: AND(E);                 break; // AND A, E
+				case 0xA4: AND(H);                 break; // AND A, H
+				case 0xA5: AND(L);                 break; // AND A, L
+				case 0xA6: AND(mr8(HL));           break; // AND A, (HL)
+				case 0xA7: AND(A);                 break; // AND A, A
 
-				case 0xA8: XOR(B);              break; // XOR A, B
-				case 0xA9: XOR(C);              break; // XOR A, C
-				case 0xAA: XOR(D);              break; // XOR A, D
-				case 0xAB: XOR(E);              break; // XOR A, E
-				case 0xAC: XOR(H);              break; // XOR A, H
-				case 0xAD: XOR(L);              break; // XOR A, L
-				case 0xAE: XOR(mr8(HL));        break; // XOR A, (HL)
-				case 0xAF: XOR(A);              break; // XOR A, A
+				case 0xA8: XOR(B);                 break; // XOR A, B
+				case 0xA9: XOR(C);                 break; // XOR A, C
+				case 0xAA: XOR(D);                 break; // XOR A, D
+				case 0xAB: XOR(E);                 break; // XOR A, E
+				case 0xAC: XOR(H);                 break; // XOR A, H
+				case 0xAD: XOR(L);                 break; // XOR A, L
+				case 0xAE: XOR(mr8(HL));           break; // XOR A, (HL)
+				case 0xAF: XOR(A);                 break; // XOR A, A
 
-				case 0xB0: OR (B);              break; // OR  A, B
-				case 0xB1: OR (C);              break; // OR  A, C
-				case 0xB2: OR (D);              break; // OR  A, D
-				case 0xB3: OR (E);              break; // OR  A, E
-				case 0xB4: OR (H);              break; // OR  A, H
-				case 0xB5: OR (L);              break; // OR  A, L
-				case 0xB6: OR (mr8(HL));        break; // OR  A, (HL)
-				case 0xB7: OR (A);              break; // OR  A, A
+				case 0xB0: OR (B);                 break; // OR  A, B
+				case 0xB1: OR (C);                 break; // OR  A, C
+				case 0xB2: OR (D);                 break; // OR  A, D
+				case 0xB3: OR (E);                 break; // OR  A, E
+				case 0xB4: OR (H);                 break; // OR  A, H
+				case 0xB5: OR (L);                 break; // OR  A, L
+				case 0xB6: OR (mr8(HL));           break; // OR  A, (HL)
+				case 0xB7: OR (A);                 break; // OR  A, A
 
-				case 0xB8: CP (B);              break; // CP  A, B
-				case 0xB9: CP (C);              break; // CP  A, C
-				case 0xBA: CP (D);              break; // CP  A, D
-				case 0xBB: CP (E);              break; // CP  A, E
-				case 0xBC: CP (H);              break; // CP  A, H
-				case 0xBD: CP (L);              break; // CP  A, L
-				case 0xBE: CP (mr8(HL));        break; // CP  A, (HL)
-				case 0xBF: CP (A);              break; // CP  A, A
+				case 0xB8: CP (B);                 break; // CP  A, B
+				case 0xB9: CP (C);                 break; // CP  A, C
+				case 0xBA: CP (D);                 break; // CP  A, D
+				case 0xBB: CP (E);                 break; // CP  A, E
+				case 0xBC: CP (H);                 break; // CP  A, H
+				case 0xBD: CP (L);                 break; // CP  A, L
+				case 0xBE: CP (mr8(HL));           break; // CP  A, (HL)
+				case 0xBF: CP (A);                 break; // CP  A, A
 
-				case 0xC0: RET(!ZF);            break; // RET NZ
-				case 0xC1: POP(BC);             break; // POP BC
-				case 0xC2: JP(pu16, !ZF);       break; // JP  nz, nnnn
-				case 0xC3: /*JP(pu16);*/            break; // JP  nnnn
-				//case 0xC3: JP(pu16);            break; // JP  nnnn
+				case 0xC0: RET(!ZF);               break; // RET NZ
+				case 0xC1: POP(BC);                break; // POP BC
+				case 0xC2: JP(pu16, !ZF);          break; // JP  nz, nnnn
+				case 0xC3: JP(pu16);               break; // JP  nnnn
+				case 0xC4: CALL(pu16, !ZF);        break; // CALL  nnnn
+				case 0xC5: PUSH(BC);               break; // PUSH BC
+				case 0xC6: ADD(pu8);               break; // ADD  A, nn
+				case 0xC7: RST(0);                 break; // RST $00
+				case 0xC8: RET(ZF);                break; // RET z
+				case 0xC9: RET();                  break; // RET
+				case 0xCA: JP(pu16, ZF);           break; // JP  z, nnnn
 
-/*
-Case 0xC4     ' CALL NZ,nnnn
-zcall pw, 1 - zf
-Case 0xC5     ' PUSH BC
-push b
-push c
-Case 0xC6     ' ADD  A,nn
-add pb
-Case 0xC7     ' RST  00H
-rst 0
-Case 0xC8     ' RET  Z
-ret zf
-Case 0xC9 'RET
-ret
-Case 0xCA     ' JP     'Z,nnnn
-jp pw, zf
+				case 0xCB: { // CB
+					u8 op2 = pu8;
+					switch (op2) {
+						case 0x00: RLC (B); break; case 0x01: RLC (C); break; case 0x02: RLC (D); break; case 0x03: RLC (E); break; case 0x04: RLC (H); break; case 0x05: RLC (L); break; case 0x06: mw8(HL, MRLC (mr8(HL))); break; case 0x07: RLC (A); break;
+						case 0x08: RRC (B); break; case 0x09: RRC (C); break; case 0x0A: RRC (D); break; case 0x0B: RRC (E); break; case 0x0C: RRC (H); break; case 0x0D: RRC (L); break; case 0x0E: mw8(HL, MRRC (mr8(HL))); break; case 0x0F: RRC (A); break;
+						case 0x10: RL  (B); break; case 0x11: RL  (C); break; case 0x12: RL  (D); break; case 0x13: RL  (E); break; case 0x14: RL  (H); break; case 0x15: RL  (L); break; case 0x16: mw8(HL, MRL  (mr8(HL))); break; case 0x17: RL  (A); break;
+						case 0x18: RR  (B); break; case 0x19: RR  (C); break; case 0x1A: RR  (D); break; case 0x1B: RR  (E); break; case 0x1C: RR  (H); break; case 0x1D: RR  (L); break; case 0x1E: mw8(HL, MRR  (mr8(HL))); break; case 0x1F: RR  (A); break;
+						case 0x20: SLA (B); break; case 0x21: SLA (C); break; case 0x22: SLA (D); break; case 0x23: SLA (E); break; case 0x24: SLA (H); break; case 0x25: SLA (L); break; case 0x26: mw8(HL, MSLA (mr8(HL))); break; case 0x27: SLA (A); break;
+						case 0x28: SRA (B); break; case 0x29: SRA (C); break; case 0x2A: SRA (D); break; case 0x2B: SRA (E); break; case 0x2C: SRA (H); break; case 0x2D: SRA (L); break; case 0x2E: mw8(HL, MSRA (mr8(HL))); break; case 0x2F: SRA (A); break;
+						case 0x30: SWAP(B); break; case 0x31: SWAP(C); break; case 0x32: SWAP(D); break; case 0x33: SWAP(E); break; case 0x34: SWAP(H); break; case 0x35: SWAP(L); break; case 0x36: mw8(HL, MSWAP(mr8(HL))); break; case 0x37: SWAP(A); break;
+						case 0x38: SRL (B); break; case 0x39: SRL (C); break; case 0x3A: SRL (D); break; case 0x3B: SRL (E); break; case 0x3C: SRL (H); break; case 0x3D: SRL (L); break; case 0x3E: mw8(HL, MSRL (mr8(HL))); break; case 0x3F: SRL (A); break;
+						default: {
+							u8 bit = (op2 >> 3) & 0b111;
+							switch (op2 & 0b11000111) {
+								// BIT
+								case 0x40: BIT(bit, B); break; case 0x41: BIT(bit, C); break; case 0x42: BIT(bit, D); break;
+								case 0x43: BIT(bit, E); break; case 0x44: BIT(bit, H); break; case 0x45: BIT(bit, L); break;
+								case 0x46: mw8(HL, MBIT(bit, mr8(HL))); break; case 0x47: BIT(bit, A); break;
 
-*/
+								// RES
+								case 0x80: RES(bit, B); break; case 0x81: RES(bit, C); break; case 0x82: RES(bit, D); break;
+								case 0x83: RES(bit, E); break; case 0x84: RES(bit, H); break; case 0x85: RES(bit, L); break;
+								case 0x86: mw8(HL, MRES(bit, mr8(HL))); break; case 0x87: RES(bit, A); break;
 
-				default: {
-					// DEPRECATED
-					u8 r1 = (op >> 0) & 0b111, r2 = (op >> 3) & 0b111;
-
-					u8 r13 = (op >> 0) & 0b0111, r23 = (op >> 3) & 0b0111;
-					u8 r14 = (op >> 0) & 0b1111, r22 = (op >> 4) & 0b0011;
-
-					if (op == 0xCB) { // MULTIBYTE
-						u8 op2 = pu8;
-						u8 r8 = getr8(op2 & 0b111);
-						u8 bit = ((op2 >> 3) & 0b111);
-
-						switch (op2 >> 6) {
-							case 0b00:
-								switch ((op2 >> 3) & 0b111) {
-									case 0b000: version(trace) TRACE(format("RLC  r%d", r8)); RLC (&r8); break;
-									case 0b001: version(trace) TRACE(format("RRC  r%d", r8)); RRC (&r8); break;
-									case 0b010: version(trace) TRACE(format("RL   r%d", r8)); RL  (&r8); break;
-									case 0b011: version(trace) TRACE(format("RR   r%d", r8)); RR  (&r8); break;
-									case 0b100: version(trace) TRACE(format("SLA  r%d", r8)); SLA (&r8); break;
-									case 0b101: version(trace) TRACE(format("SRA  r%d", r8)); SRA (&r8); break;
-									case 0b110: version(trace) TRACE(format("SWAP r%d", r8)); SWAP(&r8); break;
-									case 0b111: version(trace) TRACE(format("SRL  r%d", r8)); SRL (&r8); break;
-								}
-							break;
-							case 0b01: version(trace) TRACE(format("BIT %d, r%d", bit, r8)); BIT(bit, &r8); break;
-							case 0b10: version(trace) TRACE(format("RES %d, r%d", bit, r8)); RES(bit, &r8); break;
-							case 0b11: version(trace) TRACE(format("SET %d, r%d", bit, r8)); SET(bit, &r8); break;
-						}
-
-						setr8(op2 & 0b111, r8);
-
-						//vbcycles += opcycles_cb[op2];
-					} else {
-						// Los dos bits mas significativos del primer byte indican el tipo de instrucción
-						switch (op >> 6 & 0b11) {
-							case 0b00: {
-								switch (r13) {
-									case 0b000:
-										switch (r23) {
-											case 0b000: version(trace) TRACE("NOP"); NOP();   break;
-											case 0b001: version(trace) TRACE(format("LD [%04X] <- SP[%04X]", pu16, SP)); mem.w16(pu16, SP); break;
-											case 0b010: version(trace) TRACE("STOP"); STOP();  break;
-											case 0b011: version(trace) TRACE(format("JR %d", ps8)); JR(ps8); break;
-											case 0b100: version(trace) TRACE(format("JR NZ, %d", ps8)); if (!ZF) JR(ps8); break;
-											case 0b101: version(trace) TRACE(format("JR Z, %d", ps8)); if ( ZF) JR(ps8); break;
-											case 0b110: version(trace) TRACE(format("JR NC, %d", ps8)); if (!CF) JR(ps8); break;
-											case 0b111: version(trace) TRACE(format("JR C, %d", ps8)); if ( CF) JR(ps8); break;
-										}
-									break;
-									case 0b001: case 0b011: {
-										u8 r16 = (op >> 4) & 0b11;
-										switch (op & 0b1111) {
-											case 0b0001: version(trace) TRACE(format("LD r%d, %04X", r16, pu16)); setr16(r16, pu16); break;
-											case 0b0011: version(trace) TRACE(format("INC r%d", r16));     { u16 v = getr16(r16); INC(&v);   setr16(r16, v); } break;
-											case 0b1001: version(trace) TRACE(format("ADD HL, r%d", r16)); ADDHL(getr16(r16)); break;
-											case 0b1011: version(trace) TRACE(format("DEC r%d", r16));     { u16 v = getr16(r16); DEC(&v);   setr16(r16, v); } break;
-										}
-									} break;
-									case 0b010: { // A <- (r16), (r16) <- A
-										u16 v16 = (r2 & 0b100) ? HL : getr16(r22 & 0b11);
-										if (!(r2 & 0b1)) {
-											version(trace) TRACE(format("LD [%04X], A", v16));
-											mw8(v16, A);
-										} else {
-											version(trace) TRACE(format("LD A, [%04X]", v16));
-											A = mem.r8(v16);
-										}
-										if (r2 & 0b100) { if (!(r23 & 0b10)) { version(trace) TRACE(format("INC HL")); INC(&HL); } else { TRACE(format("DEC HL")); DEC(&HL); } }
-									} break;
-									case 0b100: version(trace) TRACE(format("INC r%d", r2)); { u8 v = getr8(r2); INC(&v); setr8(r2, v); } break; // INC
-									case 0b101: version(trace) TRACE(format("DEC r%d", r2)); { u8 v = getr8(r2); DEC(&v); setr8(r2, v); }  break; // DEC
-									case 0b110: version(trace) TRACE(format("LD r%d, %02X", r2, pu8)); setr8(r2, pu8);  break; // LD, nn
-									case 0b111:
-										switch (r2) {
-											case 0b000: version(trace) TRACE(format("RLCA")); RLC(&A); break;
-											case 0b001: version(trace) TRACE(format("RRCA")); RRC(&A); break;
-											case 0b010: version(trace) TRACE(format("RLA"));  RL (&A); break;
-											case 0b011: version(trace) TRACE(format("RRA"));  RR (&A); break;
-											case 0b100: version(trace) TRACE(format("DAA"));  DAA();   break;
-											case 0b101: version(trace) TRACE(format("CPL"));  CPL();   break;
-											case 0b110: version(trace) TRACE(format("SCF"));  SCF();   break;
-											case 0b111: version(trace) TRACE(format("CCF"));  CCF();   break;
-										}
-									break;
-								}
-							} break;
-							case 0b01: { // LD REG, REG -- REG <- REG
-								if (op == 0x76) { // HALT (LD (HL), (HL))
-									version(trace) {
-										TRACE(format("HALT"));
-										writefln("HALT");
-									}
-									//HALT();
-								} else {
-									version(trace) TRACE(format("LD r%d, r%d | v:%02X", r2, r1, getr8(r1)));
-									setr8(r2, getr8(r1));
-								}
-							} break;
-							case 0b10: { // OP A, REG
-								switch (r2) {
-									case 0b000: version(trace) TRACE(format("ADD r%d", r2)); ADD(getr8(r1)); break;
-									case 0b001: version(trace) TRACE(format("ADC r%d", r2)); ADC(getr8(r1)); break;
-									case 0b010: version(trace) TRACE(format("SUB r%d", r2)); SUB(getr8(r1)); break;
-									case 0b011: version(trace) TRACE(format("SBC r%d", r2)); SBC(getr8(r1)); break;
-									case 0b100: version(trace) TRACE(format("AND r%d", r2)); AND(getr8(r1)); break;
-									case 0b101: version(trace) TRACE(format("XOR r%d", r2)); XOR(getr8(r1)); break;
-									case 0b110: version(trace) TRACE(format("OR  r%d", r2)); OR (getr8(r1)); break;
-									case 0b111: version(trace) TRACE(format("CP  r%d", r2)); CP (getr8(r1)); break;
-								}
-							} break;
-							case 0b11: {
-								switch (r13) {
-									case 0b000:
-										if ((r23 & 0b100) == 0) {
-											if (getflag(r23 & 0b11)) RET();
-										} else {
-											switch (r23 & 0b11) {
-												case 0b00: version(trace) TRACE(format("LD [0xFF00+$%02X], A", pu8)); mw8(0xFF00 | pu8, A);  break; // LD ($FF00 + nn), A // special (old ret po)
-												case 0b01: version(trace) TRACE(format("ADD SP, %d", ps8)); ADDSP(ps8); break; // ADD SP, dd // special (old ret pe) (nocash extended as shortint)
-												case 0b10: version(trace) TRACE(format("LD A, [0xFF00+$%02X]", pu8)); A = mem.r8(0xFF00 | pu8); break; // LD A, ($FF00 + nn) // special (old ret p)
-												case 0b11: // TODO: SET FLAGS
-													version(trace) TRACE(format("LD HL, SP + %d", ps8));
-													HL = SP + ps8;
-												break;
-											}
-										}
-									break;
-									case 0b001:
-										if ((r23 & 0b001) == 0) {
-											version(trace) TRACE(format("POP r%d", r22));
-											//TRACE(format("POP r : %04X", getr16(r22)));
-											setr16pp(r22, POP());
-											//TRACE(format("POP r : %04X", getr16(r22)));
-										} else {
-											switch (r22) {
-												case 0b00: version(trace) TRACE("RET"); RET();   break;
-												case 0b01: version(trace) TRACE("RETI"); RETI();  break;
-												case 0b10: version(trace) TRACE("JP HL"); JP(HL);  break;
-												case 0b11: version(trace) TRACE("LD SP, HL"); SP = HL; break;
-											}
-										}
-									break;
-									case 0b010:
-										if ((r23 & 0b100) == 0) {
-											version(trace) TRACE(format("JP (%02b) $%04X", r23 & 0b11, pu16));
-											if (getflag(r23 & 0b11)) JP(pu16);
-										} else {
-											switch (r23 & 0b11) {
-												case 0b00: version(trace) TRACE(format("LD [0xFF00+C], A"     )); mw8(0xFF00 | C, A); break;
-												case 0b01: version(trace) TRACE(format("LD [$%04X], A",   pu16)); mw8(pu16, A); break;
-												case 0b10: version(trace) TRACE(format("LD A, [0xFF00+C]"     )); A = mem.r8(0xFF00 | C); break;
-												case 0b11: version(trace) TRACE(format("LD A, [$%04X]",   pu16)); A = mem.r8(pu16); break;
-											}
-										}
-									break;
-									case 0b011:
-										switch (r23) {
-											case 0b000: version(trace) TRACE(format("JP $%04X",      pu16)); JP(pu16); break; // C3
-											case 0b001: throw(new Exception("F.ERROR reached '0xCB'")); break; // CB
-											case 0b010: throw(new Exception(format("INVALID OP (%02X)", op))); break; // D3
-											case 0b011: throw(new Exception(format("INVALID OP (%02X)", op))); break; // DB
-											case 0b100: throw(new Exception(format("INVALID OP (%02X)", op))); break; // E3
-											case 0b101: throw(new Exception(format("INVALID OP (%02X)", op))); break; // EB
-											case 0b110: IME = false; break; // F3 (DI)
-											case 0b111: IME = true;  break; // FB (EI)
-										}
-									break;
-									case 0b100:
-										if ((r23 & 0b100) == 0) {
-											if (getflag(r23 & 0b11)) {
-												version(trace) TRACE(format("CALL $%04X", pu16));
-												CALL(pu16);
-											}
-										} else {
-											throw(new Exception(format("INVALID OP (%02X)", op))); // E4, EC, F4, FC
-										}
-									break;
-									case 0b101:
-										if ((r23 & 0b001) == 0) {
-											version(trace) TRACE(format("PUSH r%d", r22));
-											PUSH(getr16pp(r22));
-										} else {
-											switch (r22) {
-												case 0b00:
-													version(trace) TRACE(format("CALL $%04X", pu16));
-													CALL(pu16);
-												break;
-												case 0b01: throw(new Exception(format("INVALID OP (%02X)", op))); break;
-												case 0b10: throw(new Exception(format("INVALID OP (%02X)", op))); break;
-												case 0b11: throw(new Exception(format("INVALID OP (%02X)", op))); break;
-											}
-										}
-									break;
-									case 0b110: // ALU (C6, CE, D6, DE, E6, EE, F6, FE)
-										switch (r23) {
-											case 0b000: version(trace) TRACE(format("ADD %02X", pu8)); ADD(pu8); break;
-											case 0b001: version(trace) TRACE(format("ADC %02X", pu8)); ADC(pu8); break;
-											case 0b010: version(trace) TRACE(format("SUB %02X", pu8)); SUB(pu8); break;
-											case 0b011: version(trace) TRACE(format("SBC %02X", pu8)); SBC(pu8); break;
-											case 0b100: version(trace) TRACE(format("AND %02X", pu8)); AND(pu8); break;
-											case 0b101: version(trace) TRACE(format("XOR %02X", pu8)); XOR(pu8); break;
-											case 0b110: version(trace) TRACE(format("OR  %02X", pu8)); OR (pu8); break;
-											case 0b111: version(trace) TRACE(format("CP  %02X", pu8)); CP (pu8); break;
-										}
-									break;
-									case 0b111: // RST (C7, CF, D7, DF, E7, EF, F7, FF)
-										RST(r23);
-									break;
-								}
-							} break;
-						} // switch
+								// SET
+								case 0xC0: SET(bit, B); break; case 0xC1: SET(bit, C); break; case 0xC2: SET(bit, D); break;
+								case 0xC3: SET(bit, E); break; case 0xC4: SET(bit, H); break; case 0xC5: SET(bit, L); break;
+								case 0xC6: mw8(HL, MSET(bit, mr8(HL))); break; case 0xC7: SET(bit, A); break;
+							}
+						} break;
 					}
-					break;
-				} // switch
-			}
+				} break;
+
+				case 0xCC: CALL(pu16, ZF);         break; // CALL z, nnnn
+				case 0xCD: CALL(pu16);             break; // CALL nnnn
+				case 0xCE: ADC(pu8);               break; // ADC A, nn
+				case 0xCF: RST(1);                 break; // RST $08
+				case 0xD0: RET(!CF);               break; // RET nc
+				case 0xD1: POP(DE);                break; // POP DE
+				case 0xD2: JP(pu16, !CF);          break; // JP  nc, nnnn
+				case 0xD3: IOPCODE(op);            break; // ---- ??? (old out (nn), a)
+				case 0xD4: CALL(pu16, !CF);        break; // CALL nc, nnnn
+				case 0xD5: PUSH(DE);               break; // PUSH DE
+				case 0xD6: SUB(pu8);               break; // SUB nn
+				case 0xD7: RST(2);                 break; // RST $10
+				case 0xD8: RET(CF);                break; // RET cf
+				case 0xD9: RETI();                 break; // RETI
+				case 0xDA: JP(pu16, CF);           break; // JP  C, nnnn
+				case 0xDB: IOPCODE(op);            break; // ---- ??? (old in a, (nn))
+				case 0xDC: CALL(pu16, CF);         break; // CALL c, nnnn
+				case 0xDD: IOPCODE(op);            break; // ---- ??? (old ix-commands)
+				case 0xDE: SBC(pu8);               break; // SBC  A, nn
+				case 0xDF: RST(3);                 break; // RST $18
+
+				case 0xE0: mw8(0xFF00 | pu8, A);   break; // LD  ($FF00 + nn), A // special (old RET po)
+				case 0xE1: POP(HL);                break; // POP HL
+				case 0xE2: mw8(0xFF00 | C, A);     break; // LD  ($FF00 +  C), A // (old JP po, nnnn)
+				case 0xE3: IOPCODE(op);            break; // ---- ??? (old ex (sp),hl)
+				case 0xE4: IOPCODE(op);            break; // ---- ??? (old call po,nnnn)
+				case 0xE5: PUSH(HL);               break; // PUSH HL
+				case 0xE6: AND(pu8);               break; // AND nn
+				case 0xE7: RST(4);                 break; // RST $20
+				case 0xE8: ADDSP(ps8);             break; // ADD SP, nn special (old ret pe) (nocash extended as shortint)
+				case 0xE9: JP(HL);                 break; // JP HL
+				case 0xEA: mw8(pu16, A);           break; // LD  (nnnn), A // special (old JP pe, nnnn)
+				case 0xEB: IOPCODE(op);            break; // ---- ??? (old ex de,hl)
+				case 0xEC: IOPCODE(op);            break; // ---- ??? (old call pe,nnnn)
+				case 0xED: IOPCODE(op);            break; // ---- ??? (old ed-commands)
+				case 0xEE: XOR(pu8);               break; // XOR nn
+				case 0xEF: RST(5);                 break; // RST $28
+
+				case 0xF0: A = mr8(0xFF00 | pu8);  break; // LD A, ($FF00 + nn) // special (old RET p)
+				case 0xF1: POP(AF);                break; // POP AF
+				case 0xF2: A = mr8(0xFF00 | C);    break; // LD A, ($FF00 + C)
+				case 0xF3: DI();                   break; // DI
+				case 0xF4: IOPCODE(op);            break; // ---- ??? (old call p,nnnn)
+				case 0xF5: PUSH(AF);               break; // PUSH AF
+				case 0xF6: OR(pu8);                break; // OR nn
+				case 0xF7: RST(6);                 break; // RST $30
+				case 0xF8: // LD HL, SP + dd // special (old ret m) (nocash corrected)
+					HL = SP + ps8;
+					CF = SP > (SP + ps8);
+					HF = ((SP ^ (SP + ps8)) & 0x1000) > 0;
+					ZF = false;
+					NF = false;
+				break;
+				case 0xF9: SP = HL;                break; // LD  SP, HL
+				case 0xFA: A = mr8(pu16);          break; // LD  A, (nnnn) // special (old jp m,nnnn)
+				case 0xFB: EI();                   break; // EI
+				case 0xFC: IOPCODE(op);            break; // ---- ??? (old call m,nnnn)
+				case 0xFD: IOPCODE(op);            break; // ---- ??? (old iy-commands)
+				case 0xFE: CP(pu8);                break; // CP  nn
+				case 0xFF: RST(7);                 break; // RST $38
+			} // switch
 		} // while
 	} // function
 
@@ -1085,6 +907,9 @@ jp pw, zf
 
 // --- NUEVAS INSTRUCCIONES ---------------------------------------------------
 
+
+	void IOPCODE(u8 op) { throw(new Exception(format("INVALID OP (%02X)", op))); }
+
 	void INC(ref u16 r) { r++; }
 	void INC(ref u8  r) { r++; NF = false; ZF = (r == 0); HF = ((r & 0b1111) == 0b0000); }
 	void INC_MEM(u16 addr) {
@@ -1105,6 +930,15 @@ jp pw, zf
 		HF = ((v & 0b1111) == 0b1111);
 	}
 
+	u8 MRLC (u8 v) { u8 r = v; RLC (r); return r; }
+	u8 MRRC (u8 v) { u8 r = v; RRC (r); return r; }
+	u8 MRL  (u8 v) { u8 r = v; RL  (r); return r; }
+	u8 MRR  (u8 v) { u8 r = v; RL  (r); return r; }
+	u8 MSLA (u8 v) { u8 r = v; SLA (r); return r; }
+	u8 MSRA (u8 v) { u8 r = v; SRA (r); return r; }
+	u8 MSWAP(u8 v) { u8 r = v; SWAP(r); return r; }
+	u8 MSRL (u8 v) { u8 r = v; MSRL(r); return r; }
+
 	void RLC (ref u8 r) { CF = (r & 0b10000000) != 0; r = (r << 1) | CF; ZF = (r == 0); HF = false; NF = false; } // Rotate Left
 	void RRC (ref u8 r) { CF = (r & 0b00000001) != 0; r = (r >> 1) | (CF << 7); ZF = (r == 0); HF = false; NF = false; } // Rotate Right
 
@@ -1116,6 +950,19 @@ jp pw, zf
 	void SRL (ref u8 r) { CF = (r & 0b00000001) != 0; r = (r >> 1); ZF = (r == 0); HF = false; NF = false; } // Shift Right Logical
 
 	void SWAP(ref u8 r) { r = ((r >> 4) & 0b1111) | ((r << 4) & 0b11110000); ZF = (r == 0); NF = false; HF = false; CF = false; } // SWAP NIBLES
+
+	// Operaciones con bit
+	void BIT(u8 bit, ref u8 r) { ZF = (r & (1 << bit)) == 0; NF = false; HF = true; }
+	static void RES(u8 bit, ref u8 r) { r &= ~(1 << bit); }
+	static void SET(u8 bit, ref u8 r) { r |=  (1 << bit); }
+
+	void BIT(u8 bit, u8 *r) { ZF = ((*r) & (1 << bit)) == 0; NF = false; HF = true; }
+	static void RES(u8 bit, u8 *r) { (*r) &= ~(1 << bit); }
+	static void SET(u8 bit, u8 *r) { (*r) |=  (1 << bit); }
+
+	u8 MBIT(u8 bit, u8 v) { u8 r = v; BIT(bit, r); return r; }
+	static u8 MRES(u8 bit, u8 v) { u8 r = v; RES(bit, r); return r; }
+	static u8 MSET(u8 bit, u8 v) { u8 r = v; SET(bit, r); return r; }
 
 	void POP(ref u16 r) { r = mem.r16(SP); SP += 2; }
 
@@ -1137,12 +984,6 @@ jp pw, zf
 	void XOR(u8 v) { A ^= v; ZF = (A == 0); NF = false; HF = false; CF = false; } // Logical XOR
 	void CP (u8 v) { NF = true; ZF = (A == v); CF = (A < v); HF = (A & 0b1111) < (v & 0b1111); } // ComPare with A
 
-	void INC(u16* r) { (*r)++; }
-	void INC(u8*  r) { (*r)++; NF = false; ZF = (*r == 0); HF = ((*r & 0b1111) == 0b0000); }
-
-	void DEC(u16* r) { (*r)--; }
-	void DEC(u8*  r) { (*r)--; NF = true; ZF = (*r == 0); HF = ((*r & 0b1111) == 0b1111); }
-
 	void ADD(u8  v) { CF = (cast(u16)A + cast(u16)v > 0xFF); HF = (cast(u16)(A & 0xF) + cast(u16)(v & 0xF) > 0xF); A += v; NF = false; ZF = (A == 0); }
 	void ADC(u8  v) { CF = ((cast(u16)A + cast(u16)v + cast(u16)CF) > 0xFF); HF = ((cast(u16)(A & 0xF) + cast(u16)(v & 0xF) + CF) > 0xF); A += v + CF; NF = false; ZF = (A == 0); }
 
@@ -1155,22 +996,6 @@ jp pw, zf
 	void ADDSP(s8  v) { ADDSP(cast(s16)v); }
 	void ADDSP(s16 v) { CF = (SP + v < SP); NF = (SP ^ v ^ (SP + v) & 0x1000) > 0; SP += v; ZF = false; NF = false; }
 
-	void RLC (u8 *r) { CF = (*r & 0b10000000) != 0; *r = (*r << 1) | CF; ZF = (*r == 0); HF = false; NF = false; } // Rotate Left
-	void RRC (u8 *r) { CF = (*r & 0b00000001) != 0; *r = (*r >> 1) | (CF << 7); ZF = (*r == 0); HF = false; NF = false; } // Rotate Right
-
-	void RL  (u8 *r) { CF = (*r & 0b10000000) != 0; *r = (*r << 1) | ((*r >> 7) & 0b00000001); HF = false; NF = false; } // Rotate Left thru carry
-	void RR  (u8 *r) { CF = (*r & 0b00000001) != 0; *r = (*r >> 7) | ((*r << 7) & 0b10000000); HF = false; NF = false; } // Roate Right thru carry
-
-	void SLA (u8 *r) { CF = (*r & 0b10000000) != 0; *r = (*r << 1); ZF = (*r == 0); HF = false; NF = false; } // Shift Left
-	void SRA (u8 *r) { CF = (*r & 0b00000001) != 0; *r = (*r >> 1) | 0b10000000; ZF = (*r == 0); HF = false; NF = false; } // Shift Right
-	void SRL (u8 *r) { CF = (*r & 0b00000001) != 0; *r = (*r >> 1); ZF = (*r == 0); HF = false; NF = false; } // Shift Right Logical
-
-	void SWAP(u8 *r) { *r = ((*r >> 4) & 0b1111) | ((*r << 4) & 0b11110000); ZF = (*r == 0); NF = false; HF = false; CF = false; } // SWAP NIBLES
-
-	// Operaciones con bit
-	void BIT(u8 bit, u8 *r) { ZF = (*r & (1 << bit)) == 0; NF = false; HF = true; }
-	static void RES(u8 bit, u8 *r) { *r &= ~(1 << bit); }
-	static void SET(u8 bit, u8 *r) { *r |=  (1 << bit); }
 
 	void PUSH(u16 v) { SP -= 2; mem.w16(SP, v); }
 	u16  POP() { SP += 2; return mem.r16(SP - 2); }
@@ -1197,16 +1022,20 @@ jp pw, zf
 	void RET () { PC = POP(); } // RETURN
 	void RETI() { RET(); IME = true; } // RETURN INTERRUPT
 
-	void JR(s8  disp) { PC += disp; } // JUMP LOCAL TO
-	void JR(s8 disp, bool cond) { if (cond) PC += disp; } // JUMP LOCAL TO
+	// JUMP LOCAL TO
+	void JR(s8  disp) { PC += disp; }
+	void JR(s8 disp, bool cond) { if (cond) PC += disp; }
 
-	void JP(u16 addr) { PC = addr; } // JUMP TO
-	void JP(u16 addr, bool cond) { if (cond) PC = addr; } // JUMP TO
+	// JUMP TO
+	void JP(u16 addr) { PC = addr; }
+	void JP(u16 addr, bool cond) { if (cond) PC = addr; }
 
 	void DI() { IME = false; } // DISABLE INTERRUPTS
 	void EI() { IME = true ; } // ENABLE INTERRUPTS
 
 	void CALL(u16 addr) { PUSH(PC); JP(addr); } // CALL
+	void CALL(u16 addr, bool cond) { if (cond) { PUSH(PC); PC = addr; } } // CALL
+
 	void RST(u8 v) { CALL(v << 3); } // RESTART AT
 
 	void TRACE(char[] s) {

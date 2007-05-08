@@ -79,7 +79,7 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 			}
 		}
 
-		Sleep(1);
+		Sleep(10);
 
 		start = current;
 	}
@@ -382,8 +382,8 @@ class GameboyThread : Thread {
 	override int run() {
 		gb = new GameBoy(mainForm);
 
-		//gb.loadRom("ROMS\\TETRIS.GB");
-		gb.loadRom("ROMS\\MARIO.GB");
+		gb.loadRom("ROMS\\TETRIS.GB");
+		//gb.loadRom("ROMS\\MARIO.GB");
 		while (true) {
 			gb.init();
 
@@ -408,6 +408,7 @@ int main()
 		mainForm = new MainForm();
 
 		(gbt = new GameboyThread()).start();
+		gbt.setPriority(std.thread.Thread.PRIORITY.IDLE);
 		
 		Application.addMessageFilter(mainForm);
 		Application.run(mainForm);
