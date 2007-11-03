@@ -26,7 +26,7 @@ module lunea.Resource;
 import lunea.Util;
 
 // A hash of strings associated to a resource id.
-public ushort[string] __resource_list;
+public ushort[char[]] __resource_list;
 
 version (Windows) {
 	pragma(lib, "kernel32.lib");
@@ -50,7 +50,7 @@ static class Resources {
 	}
 
 	// Obtain a pointer to the resource
-	public static void* get(string name) {
+	public static void* get(char[] name) {
 		version(Windows) {
 			HRSRC hRsrc; if ((hRsrc = getp(name)) is null) return null;
 			return LoadResource(null, hRsrc);
@@ -61,7 +61,7 @@ static class Resources {
 	}
 
 	// Obtain the size of a resource
-	public static int size(string name) {
+	public static int size(char[] name) {
 		version (Windows) {
 			HRSRC hRsrc; if ((hRsrc = getp(name)) is null) return 0;
 			return SizeofResource(null, hRsrc);
@@ -72,7 +72,7 @@ static class Resources {
 	}
 
 	// Return if have the resource requested
-	public static bool have(string name) {
+	public static bool have(char[] name) {
 		version (Windows) {
 			return !((name in __resource_list) is null);
 		} else {

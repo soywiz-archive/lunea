@@ -75,7 +75,7 @@ class PathFind {
 			this.y = y;
 		}
 
-		string toString() {
+		char[] toString() {
 			return "[" ~ String.valueOf(x) ~ ", " ~ String.valueOf(y) ~ "]";
 		}
 	}

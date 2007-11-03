@@ -53,7 +53,7 @@ enum {
 	SQTrue	= 1
 }
 
-struct SQVM;
+struct SQVM { }
 struct SQTable;
 struct SQArray;
 struct SQString;

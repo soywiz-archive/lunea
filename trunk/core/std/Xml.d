@@ -120,38 +120,38 @@ class Xml {
 	}
 
 	private void add(Xml[] xmls, Xml after) {
-		int length = this.children.length;
+		int l = this.children.length;
 		int incv   = xmls.length;
 
-		this.children.length = length + incv;
+		this.children.length = l + incv;
 
-		for (int n = 0; n < length; n++) {
+		for (int n = 0; n < l; n++) {
 			if (this.children[n] == after) {
 				n++;
-				this.children[n + incv..length] = this.children[n..n + incv];
+				this.children[n + incv..l] = this.children[n..n + incv];
 				this.children[n..n + incv] = xmls[0..incv];
 				return;
 			}
 		}
 
-		this.children[length..this.children.length] = xmls[0..incv];
+		this.children[l..this.children.length] = xmls[0..incv];
 
 		if (after.name && after.name.length) {
-			length = this.childrenGroups[after.name].length;
+			l = this.childrenGroups[after.name].length;
 			incv   = xmls.length;
 
-			this.childrenGroups[after.name].length = length + incv;
+			this.childrenGroups[after.name].length = l + incv;
 
-			for (int n = 0; n < length; n++) {
+			for (int n = 0; n < l; n++) {
 				if (this.childrenGroups[after.name][n] == after) {
 					n++;
-					this.childrenGroups[after.name][n + incv..length] = this.childrenGroups[after.name][n..n + incv];
+					this.childrenGroups[after.name][n + incv..l] = this.childrenGroups[after.name][n..n + incv];
 					this.childrenGroups[after.name][n..n + incv] = xmls[0..incv];
 					return;
 				}
 			}
 
-			this.childrenGroups[after.name][length..this.childrenGroups[after.name].length] = xmls[0..incv];
+			this.childrenGroups[after.name][l..this.childrenGroups[after.name].length] = xmls[0..incv];
 		}
 
 		foreach (Xml son; xmls) son.parent = this;

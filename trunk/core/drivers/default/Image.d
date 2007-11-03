@@ -272,7 +272,7 @@ class Image {
 	}
 */
 
-	public static Image fromSurface(SDL_Surface *surface, string filename, bool frees = false) {
+	public static Image fromSurface(SDL_Surface *surface, char[] filename, bool frees = false) {
 		if (surface is null) throw(new Exception("Can't load file: '" ~ filename ~ "'"));
 		if (surface.w <   1 || surface.h <   1) throw(new Exception("Bitmap is too short"));
 
@@ -321,13 +321,13 @@ class Image {
 		return image;
 	}
 
-	public static Image fromResource(string filename) {
+	public static Image fromResource(char[] filename) {
 		if (!Resources.have(filename)) throw(new Exception("Can't load resource: " ~ filename ~ "'"));
 
 		return fromSurface(IMG_Load_RW(SDL_RWFromMem(Resources.get(filename), Resources.size(filename)), -1), filename, true);
 	}
 
-	public static Image fromFile(string filename) {
+	public static Image fromFile(char[] filename) {
 		if (!std.file.exists(filename)) throw(new Exception("Can't load file: " ~ filename ~ "'"));
 
 		return fromSurface(IMG_Load(std.string.toStringz(filename)), filename, true);

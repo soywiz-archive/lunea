@@ -29,12 +29,12 @@ private import std.string, std.stdio;
 
 // RFC 2396 - Uniform Resource Identifiers (URI): Generic Syntax
 class Uri {
-	string unit;
-	string scheme;
-	string authority;
-	string path;
-	string query;
-	string fragment;
+	char[] unit;
+	char[] scheme;
+	char[] authority;
+	char[] path;
+	char[] query;
+	char[] fragment;
 
 	bool   absolute;
 	char   pathSeparator;
@@ -100,8 +100,8 @@ class Uri {
 		writefln("fragment: " ~ fragment);
 	}
 
-	string toString() {
-		string retval;
+	char[] toString() {
+		char[] retval;
 
 		if (absolute) {
 			if (unit.length) {
@@ -125,7 +125,7 @@ class Uri {
 		return retval;
 	}
 
-	/*static string merge(string path1, string path2) {
+	/*static char[] merge(char[] path1, char[] path2) {
 		if (!path2.length) return path1;
 
 		// Absolute path
@@ -146,13 +146,13 @@ class Uri {
 		}
 	}*/
 
-	static string simplify(string path) {
+	static char[] simplify(char[] path) {
 		path = tolower(strip(replace(path, "\\", "/")));
 
-		string[] npath;
+		char[][] npath;
 		bool first = true;
 
-		foreach (string part; split(path, "/")) {
+		foreach (char[] part; split(path, "/")) {
 			part = strip(part);
 			if (!first && !part.length) {
 				first = false;
@@ -179,9 +179,9 @@ class Uri {
 		return uri;
 	}
 
-	/*static bool compare(string rp1, string p1, string rp2, string p2) {
-		string r1 = simplify(merge(rp1, p1));
-		string r2 = simplify(merge(rp2, p2));
+	/*static bool compare(char[] rp1, char[] p1, char[] rp2, char[] p2) {
+		char[] r1 = simplify(merge(rp1, p1));
+		char[] r2 = simplify(merge(rp2, p2));
 
 		return (r1 == r2);
 	}*/

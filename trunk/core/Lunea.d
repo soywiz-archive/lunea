@@ -40,13 +40,13 @@ static class Program {
 	static int running = true;
 
 	// Array of strings with the arguments passed to program
-	static string[] arguments;
+	static char[][] arguments;
 
 	// String with the path of the program
-	static string name;
+	static char[] name;
 
 	// String with the application title
-	static string title;
+	static char[] title;
 
 	// Number of milliseconds between frames
 	static int fps_interval;
@@ -75,8 +75,8 @@ static this() {
 	version(Windows) {
 		// Obtain the path of program and sets the program variable
 		char[MAX_PATH] pathbuf;
-		int length = GetModuleFileNameA(null, pathbuf.ptr, pathbuf.length);
-		program = pathbuf[0 .. length];
+		int clength = GetModuleFileNameA(null, pathbuf.ptr, pathbuf.length);
+		program = pathbuf[0 .. clength];
 	} else {
 		throw(new Exception("Linux version not implemented yet"));
 	}

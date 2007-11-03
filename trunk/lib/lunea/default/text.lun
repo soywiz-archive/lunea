@@ -9,7 +9,7 @@ process Text {
 	}
 
 	Font font;
-	string text;
+	char[] text;
 	Color color;
 	Align halign;
 	Align valign;
@@ -20,7 +20,7 @@ process Text {
 		return font.width(text);
 	}
 
-	this(string text = "", real x = 0, real y = 0, Align halign = Align.left, Align valign = Align.top, Color color = Color.white, Font font = null) {
+	this(char[] text = "", real x = 0, real y = 0, Align halign = Align.left, Align valign = Align.top, Color color = Color.white, Font font = null) {
 		if (font is null) font = debugFont;
 		this.font  = font;
 		this.text  = text;

@@ -25,39 +25,39 @@ module lunea.std.String;
 
 private import std.string, std.c.stdio;
 
-public alias char[] string;
+//public alias char[] string;
 
 static class String {
-	static char charAt(string s, int index) { return s[index]; }
+	static char charAt(char[] s, int index) { return s[index]; }
 
-	static string substr(string s, int start, int length) { if (length < 0) length = s.length + length; return s[start..s.length - length]; }
-	static string substr(string s, int start) { return s[start..s.length]; }
+	static char[] substr(char[] s, int start, int l) { if (l < 0) l = s.length + l; return s[start..s.length - l]; }
+	static char[] substr(char[] s, int start) { return s[start..s.length]; }
 
-	static string concat(string s1, string s2) { return s1 ~ s2; }
+	static char[] concat(char[] s1, char[] s2) { return s1 ~ s2; }
 
-	static string toLowerCase(string s) { return std.string.tolower(s); }
-	static string toUpperCase(string s) { return std.string.toupper(s); }
+	static char[] toLowerCase(char[] s) { return std.string.tolower(s); }
+	static char[] toUpperCase(char[] s) { return std.string.toupper(s); }
 
-	static string copyValueOf(string data, int offset = 0, int count = 0) { return data[offset..count]; }
+	static char[] copyValueOf(char[] data, int offset = 0, int count = 0) { return data[offset..count]; }
 
-	static string trim   (string s) { return std.string.strip (s); }
-	static string ltrim  (string s) { return std.string.stripl(s); }
-	static string rtrim  (string s) { return std.string.stripr(s); }
+	static char[] trim   (string s) { return std.string.strip (s); }
+	static char[] ltrim  (string s) { return std.string.stripl(s); }
+	static char[] rtrim  (string s) { return std.string.stripr(s); }
 
-	static string valueOf(bool   v) { return v ? "true" : "false"; }
-	static string valueOf(char   v) { return std.string.toString(v); }
-	static string valueOf(string v) { return v; }
-	static string valueOf(int    v) { return std.string.toString(v); }
-	static string valueOf(uint   v) { return std.string.toString(v); }
-	static string valueOf(real   v) { return std.string.toString(v); }
-	static string valueOf(ireal  v) { return std.string.toString(v); }
-	static string valueOf(Object v) { return v.toString(); }
+	static char[] valueOf(bool   v) { return v ? "true" : "false"; }
+	static char[] valueOf(char   v) { return std.string.toString(v); }
+	static char[] valueOf(string v) { return v; }
+	static char[] valueOf(int    v) { return std.string.toString(v); }
+	static char[] valueOf(uint   v) { return std.string.toString(v); }
+	static char[] valueOf(real   v) { return std.string.toString(v); }
+	static char[] valueOf(ireal  v) { return std.string.toString(v); }
+	static char[] valueOf(Object v) { return v.toString(); }
 
-	static int    indexOf(string s1, string s2, int fromIndex = 0) { int to = s1.length - s2.length; for (int n = fromIndex; n <= to; n++) if (s1[n..n + s2.length] == s2) return n; return -1; }
-	static int    lastIndexOf(string s1, string s2, int fromIndex = -1) { if (fromIndex == -1) fromIndex = s2.length - 1; if (fromIndex + s2.length > s1.length) fromIndex = s1.length -  s2.length; for (int n = fromIndex; n >= 0; n--) if (s1[n..n + s2.length] == s2) return n; return -1; }
+	static int    indexOf(char[] s1, char[] s2, int fromIndex = 0) { int to = s1.length - s2.length; for (int n = fromIndex; n <= to; n++) if (s1[n..n + s2.length] == s2) return n; return -1; }
+	static int    lastIndexOf(char[] s1, char[] s2, int fromIndex = -1) { if (fromIndex == -1) fromIndex = s2.length - 1; if (fromIndex + s2.length > s1.length) fromIndex = s1.length -  s2.length; for (int n = fromIndex; n >= 0; n--) if (s1[n..n + s2.length] == s2) return n; return -1; }
 
-	static int    length(string s) { return s.length; }
+	static int    length(char[] s) { return s.length; }
 }
 
-void echo  (string s) { for (int n = 0; n < s.length; n++) std.c.stdio.fputc(s[n], stdout); }
-void echoln(string s) { echo(s ~ "\n"); }
+void echo  (char[] s) { for (int n = 0; n < s.length; n++) std.c.stdio.fputc(s[n], stdout); }
+void echoln(char[] s) { echo(s ~ "\n"); }

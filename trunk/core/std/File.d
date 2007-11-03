@@ -34,7 +34,7 @@ class File {
 	FILE *fd;
 	Uri uri;
 
-	void open(string uris, string mode) {
+	void open(char[] uris, char[] mode) {
 		uri = new Uri(uris);
 		switch (String.toLowerCase(uri.scheme)) {
 			case "http":
@@ -60,36 +60,36 @@ class File {
 		if (fd !is null) fclose(fd);
 	}
 
-	string fread(int length) {
-		string retval;
+	char[] fread(int length) {
+		char[] retval;
 		return retval;
 	}
 
-	this(string uri, string flags) {
+	this(char[] uri, char[] flags) {
 		open(uri, flags);
 	}
 
-	static bool exists(string uris) {
+	static bool exists(char[] uris) {
 		return std.file.exists(uris) != 0;
 	}
 
-	static void rename(string uri1, string uri2) {
+	static void rename(char[] uri1, char[] uri2) {
 		std.file.rename(uri1, uri2);
 	}
 
-	static void copy(string uri1, string uri2) {
+	static void copy(char[] uri1, char[] uri2) {
 		std.file.copy(uri1, uri2);
 	}
 
-	static void remove(string uris) {
+	static void remove(char[] uris) {
 		std.file.remove(uris);
 	}
 
-	static bool isFile(string uris) {
+	static bool isFile(char[] uris) {
 		return std.file.isfile(uris) != 0;
 	}
 
-	static bool isDirectory(string uris) {
+	static bool isDirectory(char[] uris) {
 		return std.file.isdir(uris) != 0;
 	}
 }

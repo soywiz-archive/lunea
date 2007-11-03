@@ -74,7 +74,7 @@ public class Rect {
 		);
 	}
 
-	string toString() {
+	char[] toString() {
 		return "[" ~ String.valueOf(x1) ~ ", " ~ String.valueOf(y1) ~ ", " ~ String.valueOf(x2) ~ ", " ~ String.valueOf(y2) ~ "]";
 	}
 }

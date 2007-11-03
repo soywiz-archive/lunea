@@ -110,7 +110,7 @@ class CKeyboard {
 	public bool keys[SDLK_LAST];
 	public bool pressed[SDLK_LAST];
 	public bool released[SDLK_LAST];
-	public string buffer;
+	public char[] buffer;
 
 	this() {
 		SDL_EnableUNICODE(1);

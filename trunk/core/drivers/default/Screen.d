@@ -266,7 +266,7 @@ class Screen {
 		drawPixel(cast(int)x1, cast(int)y1, c);
 	}
 
-	static void savePng(string file) {
+	static void savePng(char[] file) {
 		SDL_SaveBMP(screensf, toStringz(file));
 	}
 }

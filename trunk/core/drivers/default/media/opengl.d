@@ -1,12 +1,17 @@
 //public pragma(lib, "opengl32.lib");
 
-version (Win32) {
+private import std.c.windows.windows;
+extern(Windows):
+
+/*
+version (windows) {
 	private import std.c.windows.windows;
 	extern(Windows):
 }
 version (linux) {
 	extern(C):
 }
+*/
 
 alias uint GLenum;
 alias ubyte GLboolean;
@@ -1118,7 +1123,7 @@ const uint GL_TEXTURE_COMPONENTS = GL_TEXTURE_INTERNAL_FORMAT;
 /*************************************************************/
 
 void /*APIENTRY*/glAccum (GLenum op, GLfloat value);
-void /*APIENTRY*/glAlphaFunc (GLenum func, GLclampf ref);
+void /*APIENTRY*/glAlphaFunc (GLenum func, GLclampf _ref);
 GLboolean /*APIENTRY*/glAreTexturesResident (GLsizei n, GLuint *textures, GLboolean *residences);
 void /*APIENTRY*/glArrayElement (GLint i);
 void /*APIENTRY*/glBegin (GLenum mode);
@@ -1371,7 +1376,7 @@ void /*APIENTRY*/glScalef (GLfloat x, GLfloat y, GLfloat z);
 void /*APIENTRY*/glScissor (GLint x, GLint y, GLsizei width, GLsizei height);
 void /*APIENTRY*/glSelectBuffer (GLsizei size, GLuint *buffer);
 void /*APIENTRY*/glShadeModel (GLenum mode);
-void /*APIENTRY*/glStencilFunc (GLenum func, GLint ref, GLuint mask);
+void /*APIENTRY*/glStencilFunc (GLenum func, GLint _ref, GLuint mask);
 void /*APIENTRY*/glStencilMask (GLuint mask);
 void /*APIENTRY*/glStencilOp (GLenum fail, GLenum zfail, GLenum zpass);
 void /*APIENTRY*/glTexCoord1d (GLdouble s);

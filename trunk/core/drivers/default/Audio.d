@@ -37,14 +37,14 @@ class Sample {
 		sample = null;
 	}
 
-	static Sample fromFile(string filename) {
+	static Sample fromFile(char[] filename) {
 		Sample sample = new Sample;
 		sample.sample = Mix_LoadWAV(std.string.toStringz(filename));
 		if (!sample.sample) throw(new Exception("Can't load Audio file: '" ~ filename ~ "'"));
 		return sample;
 	}
 
-	static Sample fromResource(string filename) {
+	static Sample fromResource(char[] filename) {
 		if (!Resources.have(filename)) throw(new Exception("Can't load resource: " ~ filename ~ "'"));
 		Sample sample = new Sample;
 		sample.sample = Mix_LoadWAV_RW(SDL_RWFromMem(Resources.get(filename), Resources.size(filename)), -1);
@@ -145,7 +145,7 @@ class Music {
 		if (tempfile) unlink(tempfile.ptr);
 	}
 
-	static Music fromFile(string filename) {
+	static Music fromFile(char[] filename) {
 		Music music = new Music;
 
 		if (filename.length) {
@@ -156,7 +156,7 @@ class Music {
 		return music;
 	}
 
-	static Music fromResource(string filename) {
+	static Music fromResource(char[] filename) {
 		if (!Resources.have(filename)) throw(new Exception("Can't load resource: " ~ filename ~ "'"));
 
 		Music music = new Music;
