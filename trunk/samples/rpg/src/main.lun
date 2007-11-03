@@ -162,7 +162,8 @@ program {
 			this.ctileset = tileset = new TileSet(Image.fromFile("tileset.png"), 32, 32, 2, 2, 2, 2);
 			for (int y = 0; y < width; y++) {
 				for (int x = 0; x < height; x++) {
-					board[y][x] = cast(ubyte)(random.get(0, 1) ? 12 : 5);
+					int[] list = [ 12, 12, 12, 12, 5, 5, 6, 6, 7 ];
+					board[y][x] = cast(ubyte)(list[random.get(0, list.length - 1)]);
 				}
 			}
 		}
@@ -173,7 +174,7 @@ program {
 	}
 
 	action main {
-		fps = 60;
+		fps = 200;
 
 		setMap();
 
