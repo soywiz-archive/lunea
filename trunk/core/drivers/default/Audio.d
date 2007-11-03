@@ -183,7 +183,7 @@ class Music {
 			if (music.music is null) throw(new Exception("Can't Load Music: '" ~ std.string.toString(Mix_GetError()) ~ "'"));
 		}
 
-		unlink(music.tempfile.ptr);
+		//unlink(toStringz(music.tempfile));
 
 		//free(tname);
 

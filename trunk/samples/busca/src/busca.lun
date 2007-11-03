@@ -49,14 +49,14 @@ program {
 		boom     = Sample.fromResource("boom.wav");  boom.volume = 0.3;
 
 		// Obtiene la música de fondo
-		music    = Music.fromResource("guitarou.mod"); Music.volume = 0.7;
+		//music    = Music.fromResource("guitarou.mod"); Music.volume = 0.7;
 
 		// Reproduce el módulo de sonido
-		audio.play(music);
+		//audio.play(music);
 
 		// Creamos 20 luces de decorado, con posiciones aleatorias
 		for (int n = 0; n < 20; n++) rllist ~= new RandomLight;
-
+		
 		// Creamos un nuevo tablero
 		board = new Board(22, 15, 40);
 
@@ -64,7 +64,7 @@ program {
 		board.z = 1;
 
 		key.setInterval(200, 50);
-
+		
 		// Entramos en el bucle principal
 		while (true) {
 			// En cualto pulsemos la tecla ESC, se finaliza el programa
