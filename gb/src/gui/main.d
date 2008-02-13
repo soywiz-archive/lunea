@@ -32,6 +32,8 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 	//~Entice Designer variables begin here.
 	dfl.picturebox.PictureBox pictureBox1;
 	//~Entice Designer variables end here.
+	
+	Size window_m;
 
 	GameBoy gb;
 
@@ -40,7 +42,7 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 	static this() {
 		u64 qpfreqv;
 		QueryPerformanceFrequency(&qpfreqv);
-		qpfreq = cast(f96)qpfreqv;
+		qpfreq = cast(f96)qpfreqv;		
 	}
 
 	void UpdateFPS() {
@@ -76,10 +78,10 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 			if (sec - payload >= 1.0f / 59.73f) {
 				payload = (sec - payload) - 1.0f / 59.73f;
 				break;
-			}
-		}
+			}			
+		}	
 
-		Sleep(10);
+		Sleep(10);	
 
 		start = current;
 	}
@@ -87,7 +89,6 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 	u16[] screenData;
 	HDC hdc;
 	BITMAPINFO bi;	
-	Timer timer;
 
 	void DrawScreenData() {
 		this.hdc = pictureBox1.createGraphics().handle;
@@ -97,41 +98,53 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 	/*void onPaint(Control c, PaintEventArgs pea) {
 		DrawScreenData();
 	}*/
-
+	
+	int type;
+	u8* LCDSCR;
+	bool mustUpdate = true;
+	
 	void UpdateScreen(int type, u8* LCDSCR) {
+		this.type = type;
+		this.LCDSCR = LCDSCR;
+		mustUpdate = true;
 		UpdateFPS();
-		{
-			switch (type) {
-				case 0: default: case 1: {
-					u16 RGB16(int r, int g, int b) {
-						return
-							(((b >> 3) & 0b11111) <<  0) |
-							(((g >> 3) & 0b11111) <<  5) |
-							(((r >> 3) & 0b11111) << 10) |
-						0;
-					}
-					u16[4] palette;
-					palette[0] = RGB16(0x9C, 0xB9, 0x16);
-					palette[1] = RGB16(0x8C, 0xAA, 0x14);
-					palette[2] = RGB16(0x30, 0x64, 0x30);
-					palette[3] = RGB16(0x10, 0x3F, 0x10);
-
-					screenData.length = 144 * 160;
-					for (int y = 0, n1 = 0, n2 = 0; y < 144; y++) {
-						for (int x = 0; x < 160; x += 4, n1++) {
-							u8 b = LCDSCR[n1];
-							screenData[n2++] = palette[(b >> 0) & 0b11];
-							screenData[n2++] = palette[(b >> 2) & 0b11];
-							screenData[n2++] = palette[(b >> 4) & 0b11];
-							screenData[n2++] = palette[(b >> 6) & 0b11];
-						}
-					}
-
-					DrawScreenData();
-				} break;
-			}
-		}
 		DelayVBlank();
+	}
+
+	void UpdateScreen2() {
+		if (!mustUpdate || !LCDSCR) return;
+		
+		mustUpdate = false;		
+		
+		switch (type) {
+			case 0: default: case 1: {
+				u16 RGB16(int r, int g, int b) {
+					return
+						(((b >> 3) & 0b11111) <<  0) |
+						(((g >> 3) & 0b11111) <<  5) |
+						(((r >> 3) & 0b11111) << 10) |
+					0;
+				}
+				u16[4] palette;
+				palette[0] = RGB16(0x9C, 0xB9, 0x16);
+				palette[1] = RGB16(0x8C, 0xAA, 0x14);
+				palette[2] = RGB16(0x30, 0x64, 0x30);
+				palette[3] = RGB16(0x10, 0x3F, 0x10);
+
+				screenData.length = 144 * 160;
+				for (int y = 0, n1 = 0, n2 = 0; y < 144; y++) {
+					for (int x = 0; x < 160; x += 4, n1++) {
+						u8 b = LCDSCR[n1];
+						screenData[n2++] = palette[(b >> 0) & 0b11];
+						screenData[n2++] = palette[(b >> 2) & 0b11];
+						screenData[n2++] = palette[(b >> 4) & 0b11];
+						screenData[n2++] = palette[(b >> 6) & 0b11];
+					}
+				}
+
+				DrawScreenData();
+			} break;
+		}
 	}
 
 	void attach(GameBoy gb) {
@@ -147,10 +160,25 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 		);
 		
 		this.centerToScreen();
-		this.refresh();
+		//this.refresh();
 	}
+	
+	void doTick(Timer t, EventArgs ea) {
+		UpdateScreen2();
+	}
+	
+	Timer t;
 
 	this() {
+		t = new Timer();
+		t.interval = 1;
+		t.tick ~= &doTick;
+		t.start();
+	
+		width = 0;
+		height = 0;
+		window_m = Size(width, height);
+		
 		initializeMainForm();
 		initializeKeyTranslator();
 
@@ -220,17 +248,7 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 		]);
 
 		this.icon = Application.resources.getIcon(101);
-		
-		timer = new Timer();
-		timer.interval = 10;
-		timer.enabled = true;
-		timer.tick ~= &onTimerTick;		
-		timer.start();
-	}
-	
-	void onTimerTick(Timer t, EventArgs ea) {
 		updateClientSize(2);
-		t.stop();
 	}
 	
 	char[] stateFile(int id) { return format("states\\%s.%02d.snap", gb.romName, id); }
@@ -363,8 +381,9 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 					m.wParam &= ~Keys.SHIFT;
 					
 					JoyPAD.Key key = keyTranslator[m.wParam];
-					if (m.msg == 256) gb.pad.Press(key); else gb.pad.Release(key);
-				}
+					if (m.msg == 256) gb.pad.Press(key); else gb.pad.Release(key);					
+				}				
+				return true;
 			break;
 			default: break;
 		}
@@ -404,11 +423,12 @@ int main()
 	int result = 0;
 
 	try {
-
 		mainForm = new MainForm();
 
-		(gbt = new GameboyThread()).start();
+		gbt = new GameboyThread();
 		gbt.setPriority(std.thread.Thread.PRIORITY.IDLE);
+		gbt.start();
+		
 		
 		Application.addMessageFilter(mainForm);
 		Application.run(mainForm);
