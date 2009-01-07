@@ -52,7 +52,7 @@ class DebugRegisters: dfl.form.Form
 		TextBox tb;
 		with (f = new Form) {
 			with (tb = new TextBox) {
-				bounds = dfl.base.Rect(0, 0, 120, 16);
+				bounds = Rect(0, 0, 120, 16);
 				parent = f;
 				text = initialValue;
 				borderStyle = dfl.base.BorderStyle.NONE;
@@ -119,7 +119,7 @@ class DebugRegisters: dfl.form.Form
 		listView1.multiSelect = false;
 		listView1.scrollable = false;
 		listView1.view = dfl.base.View.DETAILS;
-		listView1.bounds = dfl.base.Rect(0, 0, 74, 108);
+		listView1.bounds = Rect(0, 0, 74, 108);
 		listView1.parent = this;
 		//~Entice Designer 0.8.2.1 code ends here.
 	}

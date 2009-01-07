@@ -39,25 +39,25 @@ class About: dfl.form.Form
 		//~DFL dfl.picturebox.PictureBox=pictureBox1
 		pictureBox1 = new dfl.picturebox.PictureBox();
 		pictureBox1.name = "pictureBox1";
-		pictureBox1.bounds = dfl.base.Rect(24, 36, 32, 32);
+		pictureBox1.bounds = Rect(24, 36, 32, 32);
 		pictureBox1.parent = this;
 		//~DFL dfl.label.Label=label1
 		label1 = new dfl.label.Label();
 		label1.name = "label1";
 		label1.text = "Emulador de GameBoy";
-		label1.bounds = dfl.base.Rect(80, 24, 160, 16);
+		label1.bounds = Rect(80, 24, 160, 16);
 		label1.parent = this;
 		//~DFL dfl.label.Label=label2
 		label2 = new dfl.label.Label();
 		label2.name = "label2";
 		label2.text = "Por Carlos Ballesteros Velasco";
-		label2.bounds = dfl.base.Rect(80, 48, 160, 16);
+		label2.bounds = Rect(80, 48, 160, 16);
 		label2.parent = this;
 		//~DFL dfl.label.Label=label3
 		label3 = new dfl.label.Label();
 		label3.name = "label3";
 		label3.text = "1ª Versión Mayo 2007";
-		label3.bounds = dfl.base.Rect(80, 72, 160, 16);
+		label3.bounds = Rect(80, 72, 160, 16);
 		label3.parent = this;
 		//~Entice Designer 0.8.2.1 code ends here.
 	}	

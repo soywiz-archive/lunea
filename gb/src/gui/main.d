@@ -342,7 +342,7 @@ class MainForm: dfl.form.Form, IMessageFilter, GameboyHostSystem {
 		pictureBox1 = new dfl.picturebox.PictureBox();
 		pictureBox1.name = "pictureBox1";
 		pictureBox1.dock = dfl.control.DockStyle.FILL;
-		pictureBox1.bounds = dfl.base.Rect(0, 0, 292, 271);
+		pictureBox1.bounds = Rect(0, 0, 292, 271);
 		pictureBox1.parent = this;
 		//~Entice Designer 0.8.2.1 code ends here.
 	}
