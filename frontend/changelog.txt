@@ -1,0 +1,29 @@
+2006-06-30  Carlos Ballesteros Velasco  <soywiz@gmail.com>
+	* Solving some bugs
+
+2006-06-02  Carlos Ballesteros Velasco  <soywiz@gmail.com>
+	* Changed collision behaviour
+	* Replaced bit --> bool
+
+2006-01-02  Carlos Ballesteros Velasco  <soywiz@gmail.com>
+	* Discovered a bug using exceptions on a action block.
+
+2006-01-01  Carlos Ballesteros Velasco  <soywiz@gmail.com>
+
+	* Added "ltoken.d", simple D tokenizer that will be use after instead
+	  of complex "llexer.d".
+	* Now will use #line l "file"\n
+	* Lunea search first "src\\" directory
+	* Resources now will search on "res\\"
+
+2005-12-31  Carlos Ballesteros Velasco  <soywiz@gmail.com>
+
+	* Added "lunea.ini", "SimpleIni" class, ...
+
+2005-11-16  Carlos Ballesteros Velasco  <soywiz@gmail.com>
+
+	* Now shows the lines of LUN files instead of the D temp file ones.
+
+2005-11-15  Carlos Ballesteros Velasco  <soywiz@gmail.com>
+
+	* First commit

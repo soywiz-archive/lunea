@@ -1,8 +1,0 @@
-config {
-	output:  "rpg.exe";
-	console: true;
-    //debug:   true;
-    debug:   false;
-	title:   "rpgtest";
-    temp:    true;
-}

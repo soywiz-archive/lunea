@@ -1,0 +1,88 @@
+Gui gui;
+Font guifont;
+Process guiover;
+Process guifocused;
+Process guifocusedc;
+
+void GuiInit(Font font = null) {
+	gui = new Gui(1000);
+	if (font !is null) {
+		guifont = font;
+	} else {
+		guifont = new Font("Arial", 14, false, true);
+	}
+}
+
+process Gui {
+	Color bgColor;
+	Color fgColor;
+	Color tbaColor;
+	Color tbbColor;
+
+	private int ct = 0;
+
+	this(real z) {
+		this.z = z;
+		this.priority = -1000;
+		bgColor  = Color.fromHex("C0C4DAE0");
+		fgColor  = Color.fromHex("777FABFF");
+		tbaColor = Color.fromHex("8EB3CFE0");
+		tbbColor = Color.fromHex("DCDDE4E0");
+	}
+
+	private void pnext(Process p) {
+		p.z = ct;
+		p.priority = -ct;
+		ct++;
+		guifocused = p;
+	}
+
+	void attach(Process p) {
+		pnext(p);
+	}
+
+	void bringFront(Process p) {
+		pnext(p);
+	}
+
+	action executeBegin {
+		//writefln("EXECUTE_BEGIN");
+		guifocusedc = null;
+		guiover = null;
+	}
+
+	action main {
+		while (true) frame();
+	}
+
+	action executeEnd {
+		if (guifocusedc !is null) {
+			//writefln("EXECUTE_END");
+			Mouse.b[0] = false;
+			Mouse.pressed[0] = false;
+			Mouse.released[0] = false;
+		} else {
+			if (Mouse.pressed[0]) guifocused = null;
+		}
+	}
+
+	action draw {
+		//Screen.drawLine(0, 0, Screen.width - 1, Screen.height - 1, Color.white);
+	}
+}
+
+class GuiEventHandler {
+	private void delegate(Object that)[] list;
+
+	void opCatAssign(void delegate(Object that) d) {
+		list ~= d;
+	}
+
+	void opAddAssign(void delegate(Object that) d) {
+		list ~= d;
+	}
+
+	void execute(Process that) {
+		foreach (void delegate(Object that) deleg; list) deleg(that);
+	}
+}

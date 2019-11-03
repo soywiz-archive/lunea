@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="ISO-8859-1"?>
-<sprite image="cursor.png">
-	<clip id="arrow" x="0" y="0" width="24" height="24" centerx="5" centery="2" />
-	
-	<animation name="default" method="time" factor="10">
-		<frame duration="30"  clipid="arrow" />
-	</animation>
-</sprite>
